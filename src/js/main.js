@@ -10,6 +10,8 @@ const W = BOARD_SIZE, H = BOARD_SIZE, N = W * H;
 
 // Debug mode flag
 let debugMode = false;
+// Track currently hovered cell
+let hoveredCellIndex = -1;
 
 // Cell state bitfield flags
 const NUMBER_MASK = 0x0f; // 00001111 (4 bits for adjacent mines, bits 0-3)
@@ -27,30 +29,11 @@ const SPRITE_CELL_WIDTH = 1/SPRITE_COLS;  // 0.25
 const SPRITE_CELL_HEIGHT = 1/SPRITE_ROWS; // 0.333...
 
 function loadSpriteAtlas() {
-  // Load the sprite.png file
   const texture = new THREE.TextureLoader().load('sprite.png');
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.NearestFilter;
   return texture;
 }
-
-// Simple color palette for values 0–8
-const palette = [
-  new THREE.Color(0.9, 0.9, 0.9), // 0 - Empty
-  new THREE.Color(0.0, 0.0, 0.8), // 1 - Blue
-  new THREE.Color(0.0, 0.5, 0.0), // 2 - Green
-  new THREE.Color(0.8, 0.0, 0.0), // 3 - Red
-  new THREE.Color(0.0, 0.0, 0.5), // 4 - Dark Blue
-  new THREE.Color(0.5, 0.0, 0.0), // 5 - Dark Red
-  new THREE.Color(0.0, 0.5, 0.5), // 6 - Cyan
-  new THREE.Color(0.5, 0.0, 0.5), // 7 - Purple
-  new THREE.Color(0.3, 0.3, 0.3), // 8 - Dark Gray
-];
-
-// Additional colors
-const UNREVEALED_COLOR = new THREE.Color(0.7, 0.7, 0.7);
-const MINE_COLOR = new THREE.Color(0.0, 0.0, 0.0);
-const FLAG_COLOR = new THREE.Color(1.0, 0.0, 0.0);
 
 // --- Three.js SETUP ---
 const scene = new THREE.Scene();
@@ -101,7 +84,7 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 controls.enableZoom = true;
-controls.enableRotate = true; // Disable rotation again to keep top-down view
+controls.enableRotate = false;
 controls.screenSpacePanning = true;
 controls.enableKeys = false;
 controls.target.set(W / 2, 0, H / 2); // Set target to center of board
@@ -264,37 +247,37 @@ function updateMeshes() {
     // Update UV coordinates based on cell state
     if ((state & REVEALED) || debugMode) {
       if (state & MINE) {
-        // Use red flag at position (0,2) in the atlas (bottom left)
-        uvArray[i * 2] = 0;
-        uvArray[i * 2 + 1] = 2;
+        // Bomb sprite at position (2,0) in the atlas (bottom row, third column)
+        uvArray[i * 2] = 2;
+        uvArray[i * 2 + 1] = 0;
       } else {
         // Number tiles (1-8) in first two rows
         const adjacentMines = (state & NUMBER_MASK);
         if (adjacentMines === 0) {
-          // Empty revealed cell - using empty tile at (2,2)
-          uvArray[i * 2] = 2;
-          uvArray[i * 2 + 1] = 2;
+          // Empty revealed cell - using empty tile at (3,2)
+          uvArray[i * 2] = 3;
+          uvArray[i * 2 + 1] = 0;
         } else if (adjacentMines <= 4) {
-          // Numbers 1-4 in top row
+          // Numbers 1-4 in top row (columns 0-3)
           uvArray[i * 2] = adjacentMines - 1; // 0-based index (0,1,2,3)
-          uvArray[i * 2 + 1] = 0; // Top row
+          uvArray[i * 2 + 1] = 2; // Top row
         } else {
-          // Numbers 5-8 in middle row
+          // Numbers 5-8 in middle row (columns 0-3)
           uvArray[i * 2] = adjacentMines - 5; // 0-based index (0,1,2,3)
           uvArray[i * 2 + 1] = 1; // Middle row
         }
       }
     } else {
-      // Unrevealed tile (hidden) - using empty cell at (2,2)
-      uvArray[i * 2] = 2;
-      uvArray[i * 2 + 1] = 2;
+      // Unrevealed tile (hidden) - using the dark gray cell at (3,0)
+      uvArray[i * 2] = 3;
+      uvArray[i * 2 + 1] = 0;
     }
 
     // Handle flags
     if (state & FLAGGED) {
       if (!((state & REVEALED) || debugMode)) {
-        // Choose between red flag (0,2) or blue flag (1,2)
-        uvArray[i * 2] = 1; // Blue flag at (1,2)
+        // Red flag at (0,2), Blue flag at (1,2)
+        uvArray[i * 2] = 0; // Red flag at (0,2)
         uvArray[i * 2 + 1] = 2; // Bottom row
       }
       
@@ -317,7 +300,7 @@ function updateMeshes() {
   console.log("Meshes updated successfully");
 }
 
-function generateBoard(seed, minePercentage = 0.15) {
+function generateBoard(seed, minePercentage = 0.5) {
   console.log(`Generating board with seed: ${seed}`);
   const rng = seedrandom(seed);
   const simplex = new SimplexNoise(rng);
@@ -537,6 +520,54 @@ function onPointerMove(event) {
   
   pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
   pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  
+  // If in debug mode, update hovered cell info
+  if (debugMode) {
+    // Raycast to find intersected cell
+    raycaster.setFromCamera(pointer, camera);
+    const intersects = raycaster.intersectObject(cellMesh);
+    
+    if (intersects.length > 0) {
+      // Get instance ID
+      hoveredCellIndex = intersects[0].instanceId;
+      updateHoverInfo(hoveredCellIndex);
+    } else {
+      hoveredCellIndex = -1;
+      clearHoverInfo();
+    }
+  }
+}
+
+function updateHoverInfo(cellIndex) {
+  const infoBox = document.getElementById('infoBox');
+  if (!infoBox) return;
+  
+  if (cellIndex >= 0 && cellIndex < N) {
+    const state = states[cellIndex];
+    const x = cellIndex % W;
+    const z = Math.floor(cellIndex / W);
+    
+    let cellType = '';
+    if (state & MINE) {
+      cellType = 'MINE';
+    } else {
+      const adjacentMines = (state & NUMBER_MASK);
+      cellType = adjacentMines === 0 ? 'Empty' : `Number ${adjacentMines}`;
+    }
+    
+    const revealed = (state & REVEALED) ? 'Revealed' : 'Hidden';
+    const flagged = (state & FLAGGED) ? 'Flagged' : 'Not flagged';
+    
+    infoBox.textContent = `Cell [${x},${z}]: ${cellType} | ${revealed} | ${flagged}`;
+    infoBox.style.display = 'block';
+  }
+}
+
+function clearHoverInfo() {
+  const infoBox = document.getElementById('infoBox');
+  if (infoBox) {
+    infoBox.style.display = 'none';
+  }
 }
 
 function onPointerDown(event) {
@@ -637,8 +668,28 @@ function initUI() {
     debugMode = !debugMode;
     debugButton.textContent = `Debug: ${debugMode ? 'ON' : 'OFF'}`;
     updateMeshes();
+    
+    // Show/hide info box based on debug mode
+    const infoBox = document.getElementById('infoBox');
+    if (infoBox) {
+      infoBox.style.display = debugMode ? 'block' : 'none';
+    }
   });
   document.querySelector('.controls').appendChild(debugButton);
+  
+  // Create info box for hover information
+  const infoBox = document.createElement('div');
+  infoBox.id = 'infoBox';
+  infoBox.style.position = 'absolute';
+  infoBox.style.bottom = '10px';
+  infoBox.style.left = '10px';
+  infoBox.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+  infoBox.style.color = 'white';
+  infoBox.style.padding = '10px';
+  infoBox.style.borderRadius = '5px';
+  infoBox.style.fontFamily = 'monospace';
+  infoBox.style.display = debugMode ? 'block' : 'none';
+  document.body.appendChild(infoBox);
 }
 
 function generateRandomSeed() {

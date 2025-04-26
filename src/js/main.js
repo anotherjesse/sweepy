@@ -397,9 +397,15 @@ function revealCell(index) {
       document.head.appendChild(favicon);
     }
     favicon.href = 'red.png';
+    // FIXME(ja): fade to black for everything
+
 
     // Allow restart after a delay
     setTimeout(() => {
+      // FIXME(ja): fade in from black for everything
+      
+
+      // Re-enable player
       disablePlayer = false;
       favicon = document.querySelector('link[rel="icon"]');
       if (!favicon) {
@@ -408,8 +414,19 @@ function revealCell(index) {
         document.head.appendChild(favicon);
       }
       favicon.href = 'sprite.png';
-      // FIXME(ja): move/pan the player to a random location on the board
-
+      // Move/pan the player to a random location on the board
+      // Choose a new random position within a reasonable range (not the entire board)
+      const viewRange = 100; // A more reasonable view range
+      const randomX = Math.floor(Math.random() * (W - viewRange));
+      const randomZ = Math.floor(Math.random() * (H - viewRange));
+      
+      // Move both camera position and target coherently
+      camera.position.set(randomX + viewRange/2, camera.position.y, randomZ + viewRange/2);
+      controls.target.set(randomX + viewRange/2, 0, randomZ + viewRange/2);
+      
+      // Update camera and controls
+      camera.updateProjectionMatrix();
+      controls.update();
     }, 3000);
 
     return;

@@ -7,6 +7,13 @@ import SimplexNoise from 'simplex-noise';
 let fadeOverlay = null;
 const initialZoom = 20;
 
+// Mouse tracking variables for click vs drag detection
+let isMouseDown = false;
+let initialPointerX = 0;
+let initialPointerY = 0;
+let initialCellIndex = -1;
+const dragThreshold = 5; // Pixel threshold to consider as a drag
+
 function setupFadeOverlay() {
   fadeOverlay = document.createElement('div');
   fadeOverlay.id = 'fadeOverlay';
@@ -153,7 +160,7 @@ function initMeshes() {
   // Create a plane geometry for cells - ensure they're square
   const cellGeo = new THREE.PlaneGeometry(1, 1);
   // Make sure cells are flat on XZ plane
-  cellGeo.translate( 0.5, -0.5, 0 );
+  cellGeo.translate(0.5, -0.5, 0);
   cellGeo.rotateX(-Math.PI / 2);
 
   // Load the sprite texture
@@ -283,7 +290,7 @@ function updateMeshes() {
         uvArray[i * 2] = 0;
         uvArray[i * 2 + 1] = 1;
       }
-      
+
       // Handle finished mines (completely boxed in)
       // Blue flag sprite to the right of red flag (1,1)
       if ((state & MINE) && (state & FINISHED)) {
@@ -566,7 +573,7 @@ function toggleFlag(index) {
 
   // Update display
   updateMeshes();
-  
+
   // Check for any boxed-in mines that may need updating
   checkForBoxedInMines();
 }
@@ -646,29 +653,63 @@ function clearHoverInfo() {
 }
 
 function onPointerDown(event) {
+  // Store initial pointer position for drag detection
+  initialPointerX = event.clientX;
+  initialPointerY = event.clientY;
+  isMouseDown = true;
+
   // Update pointer position
   pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
   pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-  // Only handle clicks if not dragging/panning
+  // Only continue if not already panning
   if (controls.isPanning) return;
 
-  // Raycast to find intersected cell
+  // Raycast to find intersected cell and store it
   raycaster.setFromCamera(pointer, camera);
   const intersects = raycaster.intersectObject(cellMesh);
-  if (intersects.length === 0) return;
+  if (intersects.length === 0) {
+    initialCellIndex = -1;
+    return;
+  }
 
   const hit = intersects[0];
-  const i = hit.instanceId; // ← this is the cell index 0…N-1
-  if (i === undefined) return;
-
-  if (event.button === 0) revealCell(i);
-  else if (event.button === 2) toggleFlag(i);
+  initialCellIndex = hit.instanceId; // Store the cell index for later use on mouse up
 }
 
 // Detect when panning starts/ends
 function onPointerUp(event) {
   controls.isPanning = false;
+  
+  // Only handle cell actions if the mouse was down
+  if (!isMouseDown) return;
+  isMouseDown = false;
+
+  // Check if mouse has moved beyond the drag threshold
+  const deltaX = Math.abs(event.clientX - initialPointerX);
+  const deltaY = Math.abs(event.clientY - initialPointerY);
+  const hasMoved = deltaX > dragThreshold || deltaY > dragThreshold;
+
+  // If mouse has moved too much, don't trigger the action
+  if (hasMoved || initialCellIndex === -1) return;
+
+  // Update pointer position
+  pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  // Raycast again to ensure we're still over the same cell
+  raycaster.setFromCamera(pointer, camera);
+  const intersects = raycaster.intersectObject(cellMesh);
+  if (intersects.length === 0) return;
+
+  const hit = intersects[0];
+  const currentCellIndex = hit.instanceId;
+
+  // Only trigger actions if we're still over the same cell
+  if (currentCellIndex === initialCellIndex) {
+    if (event.button === 0) revealCell(currentCellIndex);
+    else if (event.button === 2) toggleFlag(currentCellIndex);
+  }
 }
 
 function onWheel(event) {

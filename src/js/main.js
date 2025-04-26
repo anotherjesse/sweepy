@@ -5,6 +5,7 @@ import SimplexNoise from 'simplex-noise';
 
 // after your other globals, before init():
 let fadeOverlay = null;
+const initialZoom = 20;
 
 function setupFadeOverlay() {
   fadeOverlay = document.createElement('div');
@@ -38,6 +39,7 @@ const NUMBER_MASK = 0x0f; // 00001111 (4 bits for adjacent mines, bits 0-3)
 const REVEALED = 0x10;   // 00010000
 const FLAGGED = 0x20;    // 00100000
 const MINE = 0x40;       // 01000000
+const FINISHED = 0x80;   // 10000000 (for completely boxed-in mines)
 
 // Use Uint8Array for memory efficiency (1 byte per cell) as specified in README
 const states = new Uint8Array(N);
@@ -71,7 +73,7 @@ const camera = new THREE.OrthographicCamera(
 // Position the camera directly above looking straight down (z-axis is height)
 camera.position.set(W / 2, 100, H / 2); // Center above the board
 camera.lookAt(W / 2, 0, H / 2); // Look at center of board
-camera.zoom = 20; // Set a higher default zoom level
+camera.zoom = initialZoom; // Set a higher default zoom level
 
 // Call this to apply the zoom
 camera.updateProjectionMatrix();
@@ -281,6 +283,13 @@ function updateMeshes() {
         uvArray[i * 2] = 0;
         uvArray[i * 2 + 1] = 1;
       }
+      
+      // Handle finished mines (completely boxed in)
+      // Blue flag sprite to the right of red flag (1,1)
+      if ((state & MINE) && (state & FINISHED)) {
+        uvArray[i * 2] = 1;
+        uvArray[i * 2 + 1] = 1;
+      }
     }
   }
 
@@ -298,8 +307,10 @@ function generateBoard(seed, minePercentage = 0.3) {
   // Clear existing state
   states.fill(0);
 
+  // FIXME(ja): the board layout isn't good right now... too many mines touching each other
+
   // Distribute mines using simplex noise for more natural clustering
-  const noiseScale = 0.5; // Scale factor for noise
+  const noiseScale = 0.25; // Scale factor for noise
   const threshold = 1 - minePercentage; // Threshold value for mine placement
 
   let mineCount = 0;
@@ -431,6 +442,7 @@ function revealCell(index) {
       // Move both camera position and target coherently
       camera.position.set(randomX + viewRange / 2, camera.position.y, randomZ + viewRange / 2);
       controls.target.set(randomX + viewRange / 2, 0, randomZ + viewRange / 2);
+      camera.zoom = initialZoom; // Set a higher default zoom level
 
       // Update camera and controls
       camera.updateProjectionMatrix();
@@ -496,9 +508,48 @@ function revealCell(index) {
     }
   }
 
+  // Check for mines that are now completely boxed in
+  checkForBoxedInMines();
+
   // Update display
   updateMeshes();
+}
 
+// Function to check for mines that are completely boxed in
+function checkForBoxedInMines() {
+  for (let i = 0; i < N; i++) {
+    // Skip if not a mine or already marked as finished
+    if (!(states[i] & MINE) || (states[i] & FINISHED)) continue;
+
+    const x = i % W, z = Math.floor(i / W);
+    let allRevealed = true;
+
+    // Check all 8 adjacent cells
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        if (dx === 0 && dz === 0) continue; // Skip self
+
+        const nx = x + dx;
+        const nz = z + dz;
+
+        // Check bounds
+        if (nx < 0 || nx >= W || nz < 0 || nz >= H) continue;
+
+        const ni = nx + nz * W;
+        // If any adjacent cell is not revealed, the mine is not boxed in
+        if (!(states[ni] & REVEALED)) {
+          allRevealed = false;
+          break;
+        }
+      }
+      if (!allRevealed) break;
+    }
+
+    // If all adjacent cells are revealed, mark the mine as finished
+    if (allRevealed) {
+      states[i] |= FINISHED;
+    }
+  }
 }
 
 function toggleFlag(index) {
@@ -515,6 +566,9 @@ function toggleFlag(index) {
 
   // Update display
   updateMeshes();
+  
+  // Check for any boxed-in mines that may need updating
+  checkForBoxedInMines();
 }
 
 function onPointerMove(event) {

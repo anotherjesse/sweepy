@@ -3,9 +3,39 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import seedrandom from 'seedrandom';
 import SimplexNoise from 'simplex-noise';
 
+// --- CONFIG ---
+// Use a 1000x1000 grid as specified in README
+const BOARD_SIZE = 1000;
+const W = BOARD_SIZE, H = BOARD_SIZE, N = W * H;
+
+// Debug mode flag
+let debugMode = false;
+// Track currently hovered cell
+let hoveredCellIndex = -1;
+
+// Cell state bitfield flags
+const NUMBER_MASK = 0x0f; // 00001111 (4 bits for adjacent mines, bits 0-3)
+const REVEALED = 0x10;   // 00010000
+const FLAGGED = 0x20;    // 00100000
+const MINE = 0x40;       // 01000000
+const FINISHED = 0x80;   // 10000000 (for completely boxed-in mines)
+
+// Use Uint8Array for memory efficiency (1 byte per cell) as specified in README
+const states = new Uint8Array(N);
+
 // after your other globals, before init():
 let fadeOverlay = null;
 const initialZoom = 20;
+
+// Gamepad support
+let gamepads = {};
+let hasGamepad = false;
+let gamepadCursorX = 500; // Start at center of board
+let gamepadCursorZ = 500;
+let gamepadCursorIndex = gamepadCursorX + gamepadCursorZ * W;
+let gamepadCursorMesh = null;
+let lastGamepadTimestamp = 0;
+const gamepadThrottleMS = 150; // Time between movements in ms
 
 // Mouse tracking variables for click vs drag detection
 let isMouseDown = false;
@@ -31,25 +61,6 @@ function setupFadeOverlay() {
   });
   document.body.appendChild(fadeOverlay);
 }
-// --- CONFIG ---
-// Use a 1000x1000 grid as specified in README
-const BOARD_SIZE = 1000;
-const W = BOARD_SIZE, H = BOARD_SIZE, N = W * H;
-
-// Debug mode flag
-let debugMode = false;
-// Track currently hovered cell
-let hoveredCellIndex = -1;
-
-// Cell state bitfield flags
-const NUMBER_MASK = 0x0f; // 00001111 (4 bits for adjacent mines, bits 0-3)
-const REVEALED = 0x10;   // 00010000
-const FLAGGED = 0x20;    // 00100000
-const MINE = 0x40;       // 01000000
-const FINISHED = 0x80;   // 10000000 (for completely boxed-in mines)
-
-// Use Uint8Array for memory efficiency (1 byte per cell) as specified in README
-const states = new Uint8Array(N);
 
 // Sprite info - 128x128 with 4x4 grid
 const SPRITE_COLS = 4;
@@ -144,6 +155,7 @@ function initMeshes() {
 
   // Remove any existing meshes
   if (cellMesh) scene.remove(cellMesh);
+  if (gamepadCursorMesh) scene.remove(gamepadCursorMesh);
 
   // Create a checkerboard background (optional)
   const boardGeo = new THREE.PlaneGeometry(W, H);
@@ -241,6 +253,25 @@ function initMeshes() {
   // We no longer need the 3D flag mesh since we're using sprites
 
   scene.add(cellMesh);
+
+  // Create gamepad cursor indicator (a bright highlighted square)
+  const cursorGeo = new THREE.PlaneGeometry(1, 1);
+  cursorGeo.translate(0.5, -0.45, 0); // Slightly above cells
+  cursorGeo.rotateX(-Math.PI / 2);
+  
+  const cursorMat = new THREE.MeshBasicMaterial({ 
+    color: 0xffff00, 
+    transparent: true,
+    opacity: 0.5,
+    wireframe: false,
+    side: THREE.DoubleSide
+  });
+  
+  gamepadCursorMesh = new THREE.Mesh(cursorGeo, cursorMat);
+  gamepadCursorMesh.position.set(gamepadCursorX, 0.1, gamepadCursorZ);
+  gamepadCursorMesh.visible = hasGamepad;
+  scene.add(gamepadCursorMesh);
+
   console.log("Meshes added to scene");
 }
 
@@ -454,6 +485,11 @@ function revealCell(index) {
       // Update camera and controls
       camera.updateProjectionMatrix();
       controls.update();
+
+      // MOVE GAMEPAD CURSOR TO NEW POSITION
+      gamepadCursorX = randomX + viewRange / 2;
+      gamepadCursorZ = randomZ + viewRange / 2;
+      gamepadCursorIndex = gamepadCursorX + gamepadCursorZ * W;
 
       if (fadeOverlay) fadeOverlay.style.opacity = '0';
 
@@ -731,7 +767,160 @@ function onWheel(event) {
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
+  pollGamepads();
+  
+  // Add pulsing animation to gamepad cursor
+  if (gamepadCursorMesh && gamepadCursorMesh.visible) {
+    // Pulse the opacity between 0.2 and 0.7
+    const pulseFactor = (Math.sin(Date.now() * 0.005) + 1) / 2; // 0 to 1 value
+    gamepadCursorMesh.material.opacity = 0.2 + pulseFactor * 0.5;
+  }
+  
   renderer.render(scene, camera);
+}
+
+// Gamepad functions
+function connectGamepad(e) {
+  console.log("Gamepad connected:", e.gamepad);
+  gamepads[e.gamepad.index] = e.gamepad;
+  hasGamepad = true;
+  
+  if (gamepadCursorMesh) {
+    gamepadCursorMesh.visible = true;
+    
+    // Move cursor to center of current view
+    const centerX = Math.floor(camera.position.x);
+    const centerZ = Math.floor(camera.position.z);
+    gamepadCursorX = Math.min(Math.max(centerX, 0), W - 1);
+    gamepadCursorZ = Math.min(Math.max(centerZ, 0), H - 1);
+    gamepadCursorIndex = gamepadCursorX + gamepadCursorZ * W;
+    updateGamepadCursor();
+  }
+}
+
+function disconnectGamepad(e) {
+  console.log("Gamepad disconnected:", e.gamepad);
+  delete gamepads[e.gamepad.index];
+  
+  // Check if any gamepads remain connected
+  hasGamepad = Object.keys(gamepads).length > 0;
+  
+  if (gamepadCursorMesh) {
+    gamepadCursorMesh.visible = hasGamepad;
+  }
+}
+
+function updateGamepadCursor() {
+  if (!gamepadCursorMesh) return;
+  
+  gamepadCursorMesh.position.set(gamepadCursorX, 0.1, gamepadCursorZ);
+  gamepadCursorIndex = gamepadCursorX + gamepadCursorZ * W;
+  
+  // Move camera if cursor approaches edge of view
+  const padding = 5; // Cells from edge to trigger camera move
+  const moveAmount = 3; // Cells to move camera by
+  
+  const viewportWidth = window.innerWidth / camera.zoom;
+  const viewportHeight = window.innerHeight / camera.zoom;
+  
+  const leftEdge = camera.position.x - viewportWidth / 2;
+  const rightEdge = camera.position.x + viewportWidth / 2;
+  const topEdge = camera.position.z - viewportHeight / 2;
+  const bottomEdge = camera.position.z + viewportHeight / 2;
+  
+  if (gamepadCursorX < leftEdge + padding) {
+    camera.position.x -= moveAmount;
+    controls.target.x -= moveAmount;
+  } else if (gamepadCursorX > rightEdge - padding) {
+    camera.position.x += moveAmount;
+    controls.target.x += moveAmount;
+  }
+  
+  if (gamepadCursorZ < topEdge + padding) {
+    camera.position.z -= moveAmount;
+    controls.target.z -= moveAmount;
+  } else if (gamepadCursorZ > bottomEdge - padding) {
+    camera.position.z += moveAmount;
+    controls.target.z += moveAmount;
+  }
+}
+
+function pollGamepads() {
+  if (!hasGamepad) return;
+  
+  // Only poll at a reasonable rate to prevent ultra-fast movement
+  const now = Date.now();
+  if (now - lastGamepadTimestamp < gamepadThrottleMS) return;
+  
+  // Get fresh gamepad data
+  const freshGamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+  
+  for (let i = 0; i < freshGamepads.length; i++) {
+    const gamepad = freshGamepads[i];
+    if (!gamepad) continue;
+    
+    // D-pad movement
+    // Standard mapping usually has D-pad as buttons 12-15
+    let moved = false;
+    
+    // Up (button 12 or left stick/d-pad up)
+    if (gamepad.buttons[12]?.pressed || gamepad.axes[1] < -0.5) {
+      gamepadCursorZ = Math.max(0, gamepadCursorZ - 1);
+      moved = true;
+    }
+    // Down (button 13 or left stick/d-pad down)
+    if (gamepad.buttons[13]?.pressed || gamepad.axes[1] > 0.5) {
+      gamepadCursorZ = Math.min(H - 1, gamepadCursorZ + 1);
+      moved = true;
+    }
+    // Left (button 14 or left stick/d-pad left)
+    if (gamepad.buttons[14]?.pressed || gamepad.axes[0] < -0.5) {
+      gamepadCursorX = Math.max(0, gamepadCursorX - 1);
+      moved = true;
+    }
+    // Right (button 15 or left stick/d-pad right)
+    if (gamepad.buttons[15]?.pressed || gamepad.axes[0] > 0.5) {
+      gamepadCursorX = Math.min(W - 1, gamepadCursorX + 1);
+      moved = true;
+    }
+    
+    if (moved) {
+      lastGamepadTimestamp = now;
+      updateGamepadCursor();
+    }
+    
+    // Zoom controls with shoulder buttons (L1/R1 or LB/RB)
+    // Button 4 (L1 on PlayStation, LB on Xbox) - Zoom out
+    if (gamepad.buttons[4]?.pressed) {
+      camera.zoom *= 0.95; // Zoom out
+      camera.zoom = Math.min(Math.max(camera.zoom, 10), 50); // Clamp zoom
+      camera.updateProjectionMatrix();
+    }
+    
+    // Button 5 (R1 on PlayStation, RB on Xbox) - Zoom in
+    if (gamepad.buttons[5]?.pressed) {
+      camera.zoom *= 1.05; // Zoom in
+      camera.zoom = Math.min(Math.max(camera.zoom, 10), 50); // Clamp zoom
+      camera.updateProjectionMatrix();
+    }
+    
+    // Button actions
+    // Button 0 (A on Xbox, X on PlayStation) - Reveal cell
+    if (gamepad.buttons[0]?.pressed && !gamepad.buttons[0].previouslyPressed) {
+      revealCell(gamepadCursorIndex);
+      gamepad.buttons[0].previouslyPressed = true;
+    } else if (!gamepad.buttons[0]?.pressed) {
+      gamepad.buttons[0].previouslyPressed = false;
+    }
+    
+    // Button 1 (B on Xbox, Circle on PlayStation) - Toggle flag
+    if (gamepad.buttons[1]?.pressed && !gamepad.buttons[1].previouslyPressed) {
+      toggleFlag(gamepadCursorIndex);
+      gamepad.buttons[1].previouslyPressed = true;
+    } else if (!gamepad.buttons[1]?.pressed) {
+      gamepad.buttons[1].previouslyPressed = false;
+    }
+  }
 }
 
 function initEventListeners() {
@@ -754,6 +943,10 @@ function initEventListeners() {
 
   // Window resize
   window.addEventListener('resize', handleResize);
+  
+  // Gamepad events
+  window.addEventListener('gamepadconnected', connectGamepad);
+  window.addEventListener('gamepaddisconnected', disconnectGamepad);
 }
 
 function initUI() {

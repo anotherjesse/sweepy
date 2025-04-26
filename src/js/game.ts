@@ -181,11 +181,9 @@ export function revealCell(
     // Skip if already revealed or flagged
     if (state & REVEALED || state & FLAGGED) return;
 
-    // Mark as revealed
-    states[index] |= REVEALED;
-
-    // Check if mine
+    // Check if mine first
     if (state & MINE) {
+        // Don't mark mine as revealed
         gameState.disablePlayer = true;
         if (fadeOverlay) fadeOverlay.style.opacity = "1";
 
@@ -242,6 +240,9 @@ export function revealCell(
 
         return;
     }
+
+    // Mark as revealed
+    states[index] |= REVEALED;
 
     // Auto-reveal empty cells
     const adjacentMines = state & NUMBER_MASK;

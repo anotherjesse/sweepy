@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import { W, H, N, gameState, revealCell, toggleFlag, registerKeyboardReset } from './game';
 import { renderState } from './render';
 import { gamepadState } from './gamepad';
@@ -29,6 +28,17 @@ const activeKeys = new Set<string>();
 
 // Handler for keydown events
 export function onKeyDown(event: KeyboardEvent) {
+  // Handle UI toggle keys regardless of player state
+  if (event.code === 'Slash' || event.key === '/' || event.key === '?' || event.key === 'Escape') {
+    const ui = document.getElementById('ui');
+    
+    if (ui) {
+      ui.classList.toggle('visible');
+      
+      return;
+    }
+  }
+  
   // Skip if player is disabled
   if (gameState.disablePlayer) return;
   

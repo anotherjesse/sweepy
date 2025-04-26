@@ -2,6 +2,7 @@ import seedrandom from "seedrandom";
 import SimplexNoise from "simplex-noise";
 import type { GamepadState } from "./gamepad";
 import { renderState, updateMeshes } from "./render";
+import { saveState, loadState } from "./persist";
 
 // Cell state constants type
 export type CellStateConstants = {
@@ -19,6 +20,7 @@ export type GameState = {
     firstClick: boolean;
     debugMode: boolean;
     hoveredCellIndex: number;
+    currentSeed: string;
 };
 
 // --- CONFIG ---
@@ -45,6 +47,7 @@ export const gameState: GameState = {
     firstClick: true,
     debugMode: false,
     hoveredCellIndex: -1,
+    currentSeed: '',
 };
 
 // Generate a new game board
@@ -89,6 +92,9 @@ export function generateBoard(
 
     // Update the mesh display
     updateMeshes(gameState, cellStateConstants);
+    
+    // Save the current seed and game state
+    saveGameData(seed);
 }
 
 // Calculate adjacent mines for each cell
@@ -223,6 +229,9 @@ export function revealCell(
 
     // Update display
     updateMeshes(gameState, cellStateConstants);
+    
+    // Save the updated state
+    saveState(states);
 }
 
 // Flood fill to reveal adjacent empty cells
@@ -333,11 +342,48 @@ export function toggleFlag(index: number) {
 
     // Check for any boxed-in mines that may need updating
     checkForBoxedInMines();
+    
+    // Save the updated state
+    saveState(states);
 }
 
 // Generate a random seed for the game
 export function generateRandomSeed(): string {
     const seed = Math.floor(Math.random() * 1000000000).toString();
-    window.location.hash = seed;
+    gameState.currentSeed = seed;
     return seed;
+}
+
+// Save game data to IndexedDB
+export function saveGameData(seed: string) {
+    gameState.currentSeed = seed;
+    saveState(states);
+    
+    // Also store the seed separately
+    localStorage.setItem('gameSeed', seed);
+}
+
+// Load game data from IndexedDB
+export async function loadGameData(): Promise<boolean> {
+    // Load game state
+    const savedState = await loadState();
+    
+    if (savedState) {
+        // Copy saved state to our game state array
+        states.set(savedState);
+        
+        // Load the seed
+        const savedSeed = localStorage.getItem('gameSeed');
+        if (savedSeed) {
+            gameState.currentSeed = savedSeed;
+            gameState.gameStarted = true;
+            gameState.firstClick = false;
+            
+            // Update display
+            updateMeshes(gameState, cellStateConstants);
+            return true;
+        }
+    }
+    
+    return false;
 }

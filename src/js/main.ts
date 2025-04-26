@@ -10,7 +10,8 @@ import {
   gameState, 
   cellStateConstants, 
   generateBoard, 
-  generateRandomSeed 
+  generateRandomSeed,
+  loadGameData 
 } from './game';
 import { 
   gamepadState, 
@@ -35,7 +36,7 @@ declare global {
 window.gamepadState = gamepadState;
 
 // Initialize the application
-function init() {
+async function init() {
   // Setup rendering
   initRenderer();
   
@@ -51,9 +52,12 @@ function init() {
   // Initialize UI components
   initUI(gameState, cellStateConstants, generateBoard, generateRandomSeed);
 
-  // Generate initial board
-  const seed = generateRandomSeed();
-  generateBoard(seed);
+  // Try to load saved game or generate a new board if no saved game exists
+  const loadedGame = await loadGameData();
+  if (!loadedGame) {
+    const seed = generateRandomSeed();
+    generateBoard(seed);
+  }
 
   // Start animation loop
   animate(pollGamepads);

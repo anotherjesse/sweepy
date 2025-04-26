@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      idb-keyval:
+        specifier: ^6.2.1
+        version: 6.2.1
       seedrandom:
         specifier: ^3.0.5
         version: 3.0.5
@@ -190,6 +193,9 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
+  idb-keyval@6.2.1:
+    resolution: {integrity: sha512-8Sb3veuYCyrZL+VBt9LJfZjLUPWVvqn8tG28VqYNFCo43KHcKuq+b4EiXGeuaLAQWL2YmyDgMp2aSpH9JHsEQg==}
+
   lil-gui@0.17.0:
     resolution: {integrity: sha512-MVBHmgY+uEbmJNApAaPbtvNh1RCAeMnKym82SBjtp5rODTYKWtM+MXHCifLe2H2Ti1HuBGBtK/5SyG4ShQ3pUQ==}
 
@@ -363,6 +369,8 @@ snapshots:
 
   fsevents@2.3.3:
     optional: true
+
+  idb-keyval@6.2.1: {}
 
   lil-gui@0.17.0: {}
 

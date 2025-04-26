@@ -83,12 +83,27 @@ camera.up.set(0, 0, -1); // Set up vector to ensure proper orientation
 camera.lookAt(W / 2, 0, H / 2);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // Remove grid helper as it's not needed for a 2D view
 // const gridHelper = new THREE.GridHelper(Math.min(1000, W), 10);
 // scene.add(gridHelper);
+
+// Window resize handler - ensure this is separately defined so it can be reused
+function handleResize() {
+  const aspect = window.innerWidth / window.innerHeight;
+  camera.left = frustumSize * aspect / -2;
+  camera.right = frustumSize * aspect / 2;
+  camera.top = frustumSize / 2;
+  camera.bottom = frustumSize / -2;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// Call initially to ensure correct setup
+handleResize();
 
 // OrbitControls for camera movement
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -99,6 +114,11 @@ controls.minPolarAngle = Math.PI / 2;
 controls.maxPolarAngle = Math.PI / 2;
 controls.screenSpacePanning = true;
 controls.enableRotate = false;
+controls.mouseButtons = {
+  LEFT: THREE.MOUSE.LEFT,
+  MIDDLE: THREE.MOUSE.MIDDLE,
+  RIGHT: THREE.MOUSE.PAN  // Allow right click to pan
+};
 
 // Game state
 let gameOver = false;
@@ -123,7 +143,7 @@ function initMeshes() {
 
   // Create a checkerboard background (optional)
   const boardGeo = new THREE.PlaneGeometry(W, H);
-  // boardGeo.rotateY(Math.PI / 2);
+  boardGeo.rotateX(-Math.PI / 2); // Rotate the board to be horizontal
   window.boardGeo = boardGeo;
   const boardMat = new THREE.MeshBasicMaterial({
     color: 0x444444,
@@ -132,9 +152,9 @@ function initMeshes() {
   boardMesh.position.set(W / 2, -0.1, H / 2); // Slightly below the cells
   scene.add(boardMesh);
 
-  // Create a plane geometry for cells
+  // Create a plane geometry for cells - ensure they're square
   const cellGeo = new THREE.PlaneGeometry(0.9, 0.9);
-  cellGeo.rotateX(-Math.PI / 2);
+  cellGeo.rotateX(-Math.PI / 2); // Rotate to be horizontal (XZ plane)
 
   // Create colored attribute for initial state
   const initialColors = new Float32Array(N * 3);
@@ -223,6 +243,7 @@ function initMeshes() {
 
   // Create a simple triangle geometry for flags
   const flagGeo = new THREE.ConeGeometry(0.3, 0.6, 3);
+  flagGeo.rotateX(Math.PI); // Ensure flag orientation is correct
   const flagMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
   flagMesh = new THREE.InstancedMesh(flagGeo, flagMat, N);
   flagMesh.frustumCulled = true;
@@ -452,7 +473,7 @@ function revealCell(index) {
   }
 
   // Auto-reveal empty cells
-  const adjacentMines = (state & NUMBER_MASK);
+  const adjacentMines = (state & NUMBER_MASK) ;
   if (adjacentMines === 0) {
     // Flood fill to reveal adjacent empty cells
     const queue = [index];
@@ -518,6 +539,11 @@ function toggleFlag(index) {
 }
 
 function onPointerMove(event) {
+  // If right mouse button is down, we're panning
+  if (event.buttons === 2) {
+    controls.isPanning = true;
+  }
+  
   pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
   pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
 }
@@ -532,18 +558,26 @@ function onPointerDown(event) {
   const intersects = raycaster.intersectObject(cellMesh);
 
   if (intersects.length > 0) {
-    // Get instance ID
-    const instanceId = intersects[0].instanceId;
+    // Only handle clicks if not dragging/panning
+    if (!controls.isPanning) {
+      // Get instance ID
+      const instanceId = intersects[0].instanceId;
 
-    // Left click = reveal, Right click = flag
-    if (event.button === 0) {
-      // Left click
-      revealCell(instanceId);
-    } else if (event.button === 2) {
-      // Right click
-      toggleFlag(instanceId);
+      // Left click = reveal, Right click = flag
+      if (event.button === 0) {
+        // Left click
+        revealCell(instanceId);
+      } else if (event.button === 2) {
+        // Right click
+        toggleFlag(instanceId);
+      }
     }
   }
+}
+
+// Detect when panning starts/ends
+function onPointerUp(event) {
+  controls.isPanning = false;
 }
 
 function onWheel(event) {
@@ -576,6 +610,9 @@ function initEventListeners() {
 
   // Mouse click
   window.addEventListener('pointerdown', onPointerDown);
+  
+  // Mouse up
+  window.addEventListener('pointerup', onPointerUp);
 
   // Prevent context menu
   window.addEventListener('contextmenu', (event) => {
@@ -586,15 +623,7 @@ function initEventListeners() {
   window.addEventListener('wheel', onWheel);
 
   // Window resize
-  window.addEventListener('resize', () => {
-    const aspect = window.innerWidth / window.innerHeight;
-    camera.left = frustumSize * aspect / -2;
-    camera.right = frustumSize * aspect / 2;
-    camera.top = frustumSize / 2;
-    camera.bottom = frustumSize / -2;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
+  window.addEventListener('resize', handleResize);
 }
 
 function initUI() {

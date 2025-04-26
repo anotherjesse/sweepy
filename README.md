@@ -1,6 +1,6 @@
 # Millionsweeper
 
-A large Minecraft-style board renderer with procedural generation.
+A large minesweeper-style board renderer with procedural generation.
 
 ## Gameplay
 
@@ -36,25 +36,14 @@ A large Minecraft-style board renderer with procedural generation.
 
 ## Project Setup
 
+we use pnpm to install the dependencies.
+
 ```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
+pnpm install
 ```
 
-## Project Structure
+and to run the dev server in watch mode:
 
-- `/src`: Source files
-  - `/js`: JavaScript files
-  - `/css`: CSS styles
-  - `index.html`: Main HTML file
-- `/dist`: Production build output
-- `/public`: Static assets 
+```bash
+pnpm dev
+```

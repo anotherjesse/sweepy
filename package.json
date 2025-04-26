@@ -1,7 +1,7 @@
 {
   "name": "millionsweeper",
   "version": "0.1.0",
-  "description": "Large Minecraft Board Renderer",
+  "description": "1 million cells Minesweeper Board Renderer",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -12,11 +12,6 @@ type CustomHTMLLinkElement = HTMLElement & {
   href: string;
 };
 
-// Type for fade overlay
-type FadeOverlay = HTMLDivElement & {
-  style: CSSStyleDeclaration;
-};
-
 // Make TypeScript happy with simplex-noise
 declare module 'simplex-noise' {
   export default class SimplexNoise {

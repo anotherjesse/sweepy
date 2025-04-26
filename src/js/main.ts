@@ -1,37 +1,31 @@
-import { 
-  setupFadeOverlay, 
-  initRenderer, 
-  initMeshes, 
-  initUI, 
-  animate, 
+import * as config from "./config";
+import {
+  animate,
   handleResize,
-  renderState
-} from './render';
-import { 
-  gameState, 
-  cellStateConstants, 
-  generateBoard, 
+  initMeshes,
+  initRenderer,
+  renderState,
+} from "./render";
+import { fade, initUI, setupFadeOverlay, unfade } from "./ui";
+import {
+  gameState,
+  generateBoard,
   generateRandomSeed,
-  loadGameData 
-} from './game';
-import { 
-  gamepadState, 
-  connectGamepad, 
-  disconnectGamepad, 
-  pollGamepads 
-} from './gamepad';
-import { 
-  onPointerMove, 
-  onPointerDown, 
-  onPointerUp, 
-  onWheel 
-} from './mouse';
+  loadGameData,
+} from "./game";
+import {
+  connectGamepad,
+  disconnectGamepad,
+  gamepadState,
+  pollGamepads,
+} from "./gamepad";
+import { onPointerDown, onPointerMove, onPointerUp, onWheel } from "./mouse";
 import {
   keyboardState,
   onKeyDown,
   onKeyUp,
-  processKeyboardInput
-} from './keyboard';
+  processKeyboardInput,
+} from "./keyboard";
 
 // Make states available globally for use in the render loop
 declare global {
@@ -50,18 +44,15 @@ window.gameState = gameState;
 async function init() {
   // Setup rendering
   await initRenderer();
-  
-  // Create fade overlay for death transition
-  const fadeOverlay = setupFadeOverlay();
-  
+
   // Initialize meshes
-  initMeshes(gameState, cellStateConstants, gamepadState);
-  
+  initMeshes(gameState, config.cellStateConstants, gamepadState);
+
   // Setup event listeners
   initEventListeners();
-  
+
   // Initialize UI components
-  initUI(gameState, cellStateConstants, generateBoard, generateRandomSeed);
+  initUI();
 
   // Try to load saved game or generate a new board if no saved game exists
   const loadedGame = await loadGameData();
@@ -80,89 +71,101 @@ async function init() {
 // Setup event listeners
 function initEventListeners() {
   // Mouse events
-  window.addEventListener('pointermove', onPointerMove);
-  window.addEventListener('pointerdown', onPointerDown);
-  window.addEventListener('pointerup', onPointerUp);
-  
+  window.addEventListener("pointermove", onPointerMove);
+  window.addEventListener("pointerdown", onPointerDown);
+  window.addEventListener("pointerup", onPointerUp);
+
   // Prevent context menu
-  window.addEventListener('contextmenu', (event) => {
+  window.addEventListener("contextmenu", (event) => {
     event.preventDefault();
   });
 
   // Mouse wheel for zoom
-  window.addEventListener('wheel', onWheel);
+  window.addEventListener("wheel", onWheel);
 
   // Keyboard events
-  window.addEventListener('keydown', onKeyDown);
-  window.addEventListener('keyup', onKeyUp);
-  
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", onKeyUp);
+
   // Debug key for keyboard cursor visibility
-  window.addEventListener('keydown', (event) => {
-    if (event.code === 'KeyK' && event.ctrlKey) {
+  window.addEventListener("keydown", (event) => {
+    if (event.code === "KeyK" && event.ctrlKey) {
       if (window.keyboardState && renderState.keyboardCursorMesh) {
-        renderState.keyboardCursorMesh.visible = !renderState.keyboardCursorMesh.visible;
-        console.log(`Keyboard cursor ${renderState.keyboardCursorMesh.visible ? 'shown' : 'hidden'}`);
+        renderState.keyboardCursorMesh.visible = !renderState.keyboardCursorMesh
+          .visible;
+        console.log(
+          `Keyboard cursor ${
+            renderState.keyboardCursorMesh.visible ? "shown" : "hidden"
+          }`,
+        );
       }
     }
   });
 
   // Window resize
-  window.addEventListener('resize', handleResize);
-  
+  window.addEventListener("resize", handleResize);
+
   // Gamepad events
-  window.addEventListener('gamepadconnected', connectGamepad);
-  window.addEventListener('gamepaddisconnected', disconnectGamepad);
+  window.addEventListener("gamepadconnected", connectGamepad);
+  window.addEventListener("gamepaddisconnected", disconnectGamepad);
 }
 
 // Import user preferences functions
-import { loadPreferences, updatePreferences, UserPreferences } from './persist';
+import { loadPreferences, updatePreferences, UserPreferences } from "./persist";
 
 // Check system preference for dark mode
 async function setupColorScheme() {
   // Try to load user preferences first
   const prefs = await loadPreferences();
-  
-  if (prefs && typeof prefs.darkMode !== 'undefined') {
+
+  if (prefs && typeof prefs.darkMode !== "undefined") {
     // Use saved preference if available
     if (prefs.darkMode) {
-      document.body.classList.add('dark-mode');
+      document.body.classList.add("dark-mode");
     } else {
-      document.body.classList.remove('dark-mode');
+      document.body.classList.remove("dark-mode");
     }
   } else {
     // Fall back to system preference if no saved preference
-    const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const prefersDarkMode =
+      window.matchMedia("(prefers-color-scheme: dark)").matches;
     if (prefersDarkMode) {
-      document.body.classList.add('dark-mode');
+      document.body.classList.add("dark-mode");
     }
-    
+
     // Create initial preferences object
     await updatePreferences({
-      darkMode: prefersDarkMode
+      darkMode: prefersDarkMode,
     });
   }
 
   // Listen for system changes to color scheme
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', async event => {
-    // Only update based on system if user hasn't manually set preference
-    const currentPrefs = await loadPreferences();
-    if (!currentPrefs || currentPrefs.darkMode === undefined) {
-      if (event.matches) {
-        document.body.classList.add('dark-mode');
-      } else {
-        document.body.classList.remove('dark-mode');
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener(
+    "change",
+    async (event) => {
+      // Only update based on system if user hasn't manually set preference
+      const currentPrefs = await loadPreferences();
+      if (!currentPrefs || currentPrefs.darkMode === undefined) {
+        if (event.matches) {
+          document.body.classList.add("dark-mode");
+        } else {
+          document.body.classList.remove("dark-mode");
+        }
+
+        // Save the new system preference
+        await updatePreferences({
+          darkMode: event.matches,
+        });
       }
-      
-      // Save the new system preference
-      await updatePreferences({
-        darkMode: event.matches
-      });
-    }
-  });
+    },
+  );
 }
 
 // Start the application when DOM is ready
-window.addEventListener('DOMContentLoaded', async () => {
+window.addEventListener("DOMContentLoaded", async () => {
+  await setupFadeOverlay();
+  fade();
   await setupColorScheme();
   init();
-}); 
+  unfade();
+});

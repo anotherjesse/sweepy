@@ -1,9 +1,9 @@
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import {  W, H, N, states } from './game';
-import type { GameState, CellStateConstants } from './game';
-import type { GamepadState } from './gamepad';
-import { loadPreferences, updatePreferences } from './persist';
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import  { type GameState, states } from "./game";
+import type { GamepadState } from "./gamepad";
+import { loadPreferences, updatePreferences } from "./persist";
+import * as config from "./config";
 
 // Extended OrbitControls type to add missing properties
 export type ExtendedOrbitControls = OrbitControls & {
@@ -20,7 +20,7 @@ export type RenderState = {
   keyboardCursorMesh: THREE.Mesh | null;
 };
 
-// Sprite constants 
+// Sprite constants
 export type SpriteConstants = {
   SPRITE_CELL_WIDTH: number;
   SPRITE_CELL_HEIGHT: number;
@@ -28,12 +28,12 @@ export type SpriteConstants = {
 
 // Sprite sheet constants - will be used in shader
 export const SPRITE_CELL_WIDTH = 0.25; // 1/4 (for 4x4 sprite atlas)
-export const SPRITE_CELL_HEIGHT = 1/3; // 1/4 (for 4x4 sprite atlas)
+export const SPRITE_CELL_HEIGHT = 1 / 3; // 1/4 (for 4x4 sprite atlas)
 
 // Constants for zoom
 export const ZOOM_MIN = 10;
 export const ZOOM_MAX = 50;
-export const ZOOM_IN_FACTOR = 1.1;  // Consistent zoom in factor
+export const ZOOM_IN_FACTOR = 1.1; // Consistent zoom in factor
 export const ZOOM_OUT_FACTOR = 0.9; // Consistent zoom out factor
 
 // Create render state object
@@ -45,12 +45,12 @@ export const renderState: RenderState = {
     window.innerHeight / 2,
     -window.innerHeight / 2,
     0.1,
-    10000
+    10000,
   ),
   renderer: new THREE.WebGLRenderer({ antialias: false }),
   controls: null!,
   cellMesh: null,
-  keyboardCursorMesh: null
+  keyboardCursorMesh: null,
 };
 
 // Zoom control functions
@@ -71,7 +71,10 @@ export function setZoom(level: number) {
 
 export function applyZoomConstraints() {
   // Clamp zoom between min and max
-  renderState.camera.zoom = Math.min(Math.max(renderState.camera.zoom, ZOOM_MIN), ZOOM_MAX);
+  renderState.camera.zoom = Math.min(
+    Math.max(renderState.camera.zoom, ZOOM_MIN),
+    ZOOM_MAX,
+  );
   // Update the projection matrix
   renderState.camera.updateProjectionMatrix();
 }
@@ -82,75 +85,86 @@ export async function saveCameraState() {
     cameraPosition: {
       x: renderState.camera.position.x,
       y: renderState.camera.position.y,
-      z: renderState.camera.position.z
+      z: renderState.camera.position.z,
     },
-    zoom: renderState.camera.zoom
+    zoom: renderState.camera.zoom,
   });
 }
 
 // Initialize the renderer
 export async function initRenderer() {
   renderState.scene.background = new THREE.Color(0x333333);
-  
+
   // Try to load saved camera position from preferences
   const prefs = await loadPreferences();
-  
+
   // Default position (center of board looking down)
-  const defaultPosition = { x: W / 2, y: 100, z: H / 2 };
-  const defaultTarget = { x: W / 2, y: 0, z: H / 2 };
-  
+  const defaultPosition = { x: config.W / 2, y: 100, z: config.H / 2 };
+  const defaultTarget = { x: config.W / 2, y: 0, z: config.H / 2 };
+
   // Position the camera directly above looking straight down (z-axis is height)
   if (prefs?.cameraPosition) {
     renderState.camera.position.set(
       prefs.cameraPosition.x,
       prefs.cameraPosition.y,
-      prefs.cameraPosition.z
+      prefs.cameraPosition.z,
     );
   } else {
-    renderState.camera.position.set(defaultPosition.x, defaultPosition.y, defaultPosition.z);
+    renderState.camera.position.set(
+      defaultPosition.x,
+      defaultPosition.y,
+      defaultPosition.z,
+    );
   }
-  
+
   renderState.camera.lookAt(defaultTarget.x, defaultTarget.y, defaultTarget.z);
   // Set zoom level from preferences or use default
   renderState.camera.zoom = prefs?.zoom || 20; // Default zoom level if not found
-  
+
   // Apply zoom
   renderState.camera.updateProjectionMatrix();
-  
+
   renderState.renderer.setPixelRatio(2);
   renderState.renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderState.renderer.domElement);
-  
+
   // Create OrbitControls
-  renderState.controls = new OrbitControls(renderState.camera, renderState.renderer.domElement);
+  renderState.controls = new OrbitControls(
+    renderState.camera,
+    renderState.renderer.domElement,
+  );
   renderState.controls.enableDamping = true;
   renderState.controls.dampingFactor = 0.05;
   renderState.controls.enableZoom = true;
   renderState.controls.enableRotate = false;
   renderState.controls.screenSpacePanning = true;
-  
+
   // Set target from saved preferences or default
   if (prefs?.targetPosition) {
     renderState.controls.target.set(
       prefs.targetPosition.x,
       prefs.targetPosition.y,
-      prefs.targetPosition.z
+      prefs.targetPosition.z,
     );
   } else {
-    renderState.controls.target.set(defaultTarget.x, defaultTarget.y, defaultTarget.z);
+    renderState.controls.target.set(
+      defaultTarget.x,
+      defaultTarget.y,
+      defaultTarget.z,
+    );
   }
-  
+
   renderState.controls.mouseButtons = {
     LEFT: THREE.MOUSE.LEFT,
     MIDDLE: THREE.MOUSE.MIDDLE,
-    RIGHT: THREE.MOUSE.PAN  // Allow right click to pan
+    RIGHT: THREE.MOUSE.PAN, // Allow right click to pan
   };
 }
 
 // Load sprite atlas
 function loadSpriteAtlas(): THREE.Texture {
   const textureLoader = new THREE.TextureLoader();
-  return textureLoader.load('/new.gif', (texture) => {
+  return textureLoader.load("/new.gif", (texture) => {
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.NearestFilter;
   });
@@ -158,25 +172,31 @@ function loadSpriteAtlas(): THREE.Texture {
 
 // Initialize meshes
 export function initMeshes(
-  gameState: GameState, 
-  cellConstants: CellStateConstants,
-  gamepadState: GamepadState
+  gameState: GameState,
+  cellConstants: config.CellStateConstants,
+  gamepadState: GamepadState,
 ) {
   console.log("Initializing meshes");
 
-  const { scene, cellMesh: currentCellMesh, keyboardCursorMesh: currentKeyboardCursorMesh } = renderState;
+  const {
+    scene,
+    cellMesh: currentCellMesh,
+    keyboardCursorMesh: currentKeyboardCursorMesh,
+  } = renderState;
 
   // Remove any existing meshes
   if (currentCellMesh) scene.remove(currentCellMesh);
-  if (gamepadState.gamepadCursorMesh) scene.remove(gamepadState.gamepadCursorMesh);
+  if (gamepadState.gamepadCursorMesh) {
+    scene.remove(gamepadState.gamepadCursorMesh);
+  }
   if (currentKeyboardCursorMesh) scene.remove(currentKeyboardCursorMesh);
 
   // Create a checkerboard background (optional)
-  const boardGeo = new THREE.PlaneGeometry(W, H);
+  const boardGeo = new THREE.PlaneGeometry(config.W, config.H);
   // Make sure board is flat on XZ plane
   boardGeo.rotateX(-Math.PI / 2);
   (window as any).boardGeo = boardGeo;
-  
+
   // Create a plane geometry for cells - ensure they're square
   const cellGeo = new THREE.PlaneGeometry(1, 1);
   // Make sure cells are flat on XZ plane
@@ -187,12 +207,12 @@ export function initMeshes(
   const spriteTexture = loadSpriteAtlas();
 
   // Create custom attributes for the instanced mesh
-  const offsets = new Float32Array(N * 2); // x, z offsets
-  const uvs = new Float32Array(N * 2); // texture atlas offsets
+  const offsets = new Float32Array(config.N * 2); // x, z offsets
+  const uvs = new Float32Array(config.N * 2); // texture atlas offsets
 
   // Initialize all cells as hidden (use empty tile at position (2,2) in atlas)
-  for (let i = 0; i < N; i++) {
-    const x = i % W, z = Math.floor(i / W);
+  for (let i = 0; i < config.N; i++) {
+    const x = i % config.W, z = Math.floor(i / config.W);
     offsets[i * 2] = x;
     offsets[i * 2 + 1] = z;
     uvs[i * 2] = 2; // Empty tile (col 3, 0-indexed)
@@ -238,13 +258,13 @@ export function initMeshes(
   });
 
   // Create instanced mesh for cells
-  const newCellMesh = new THREE.InstancedMesh(cellGeo, cellMat, N);
+  const newCellMesh = new THREE.InstancedMesh(cellGeo, cellMat, config.N);
   newCellMesh.frustumCulled = true; // Only render visible cells
 
   // Update instance matrices
   const dummy = new THREE.Object3D();
-  for (let i = 0; i < N; i++) {
-    const x = i % W, z = Math.floor(i / W);
+  for (let i = 0; i < config.N; i++) {
+    const x = i % config.W, z = Math.floor(i / config.W);
     dummy.position.set(x, 0, z);
     dummy.updateMatrix();
     newCellMesh.setMatrixAt(i, dummy.matrix);
@@ -254,11 +274,11 @@ export function initMeshes(
   // Manually compute and set bounding box for proper frustum culling
   newCellMesh.geometry.boundingBox = new THREE.Box3(
     new THREE.Vector3(0, -0.1, 0),
-    new THREE.Vector3(W, 0.1, H),
+    new THREE.Vector3(config.W, 0.1, config.H),
   );
   newCellMesh.geometry.boundingSphere = new THREE.Sphere(
-    new THREE.Vector3(W / 2, 0, H / 2),
-    Math.sqrt(W * W + H * H) / 2,
+    new THREE.Vector3(config.W / 2, 0, config.H / 2),
+    Math.sqrt(config.W * config.W + config.H * config.H) / 2,
   );
 
   scene.add(newCellMesh);
@@ -279,9 +299,9 @@ export function initMeshes(
 
   const newGamepadCursorMesh = new THREE.Mesh(cursorGeo, gamepadCursorMat);
   newGamepadCursorMesh.position.set(
-    gamepadState.gamepadCursorX, 
-    0.1, 
-    gamepadState.gamepadCursorZ
+    gamepadState.gamepadCursorX,
+    0.1,
+    gamepadState.gamepadCursorZ,
   );
   newGamepadCursorMesh.visible = gamepadState.hasGamepad;
   scene.add(newGamepadCursorMesh);
@@ -301,96 +321,89 @@ export function initMeshes(
   keyboardCursorGeo.translate(0.5, -0.4, 0); // Slightly above cells and gamepad cursor
   keyboardCursorGeo.rotateX(-Math.PI / 2);
 
-  const keyboardCursorMesh = new THREE.Mesh(keyboardCursorGeo, keyboardCursorMat);
-  
+  const keyboardCursorMesh = new THREE.Mesh(
+    keyboardCursorGeo,
+    keyboardCursorMat,
+  );
+
   // Initialize keyboard cursor at center of the board or at current keyboard position
   const keyboardState = window.keyboardState;
   if (keyboardState) {
     keyboardCursorMesh.position.set(
       keyboardState.cursorX,
       0.15, // Slightly higher than gamepad cursor
-      keyboardState.cursorZ
+      keyboardState.cursorZ,
     );
-    console.log(`Initialized keyboard cursor at (${keyboardState.cursorX}, ${keyboardState.cursorZ})`);
   } else {
-    keyboardCursorMesh.position.set(W / 2, 0.15, H / 2);
-    console.log(`Initialized keyboard cursor at default center (${W/2}, ${H/2})`);
+    keyboardCursorMesh.position.set(config.W / 2, 0.15, config.H / 2);
   }
-  
-  // Always make sure keyboard cursor is visible
+
   keyboardCursorMesh.visible = true;
-  
+
   scene.add(keyboardCursorMesh);
   renderState.keyboardCursorMesh = keyboardCursorMesh;
-
-  console.log("Meshes added to scene");
 }
 
-export function updateMeshes(
-  gameState: GameState, 
-  cellConstants: CellStateConstants
-) {
+export function updateMeshes(  gameState: GameState,) {
   console.log("Updating meshes with states array");
   const { cellMesh } = renderState;
-  
+
   if (!cellMesh) {
     console.error("Meshes not initialized");
     return;
   }
 
-  const { NUMBER_MASK, REVEALED, FLAGGED, MINE, FINISHED } = cellConstants;
+  const { NUMBER_MASK, REVEALED, FLAGGED, MINE, FINISHED } = config.cellStateConstants;
   const { debugMode } = gameState;
   // Get attribute and handle it safely
   const uvAttribute = cellMesh.geometry.getAttribute("aUV");
-  
+
   // This type assertion is necessary because THREE.js typings are sometimes incomplete
   // BufferAttribute and InterleavedBufferAttribute both have array, but the union type
   // in THREE.js doesn't capture this correctly
   const uvArray = (uvAttribute as THREE.BufferAttribute).array as number[];
 
-  for (let i = 0; i < N; i++) {
+  const updateUV = (i: number, u: number, v: number) => {
+    uvArray[i * 2] = u;
+    uvArray[i * 2 + 1] = v;
+  };
+
+  for (let i = 0; i < config.N; i++) {
     const state = states[i];
 
     // Update UV coordinates based on cell state
     if ((state & REVEALED) || debugMode) {
       if (state & MINE) {
         // Bomb sprite at position (2,0) in the atlas (bottom row, third column)
-        uvArray[i * 2] = 1;
-        uvArray[i * 2 + 1] = 0;
+        updateUV(i, 1, 0);
       } else {
         // Number tiles (1-8) in first two rows
         const adjacentMines = state & NUMBER_MASK;
         if (adjacentMines === 0) {
           // Empty revealed cell - using empty tile at (3,2)
-          uvArray[i * 2] = 3;
-          uvArray[i * 2 + 1] = 0;
+          updateUV(i, 3, 0);
         } else if (adjacentMines <= 4) {
           // Numbers 1-4 in top row (columns 0-3)
-          uvArray[i * 2] = adjacentMines - 1; // 0-based index (0,1,2,3)
-          uvArray[i * 2 + 1] = 2; // Top row
+          updateUV(i, adjacentMines - 1, 2); // 0-based index (0,1,2,3)
         } else {
           // Numbers 5-8 in middle row (columns 0-3)
-          uvArray[i * 2] = adjacentMines - 5; // 0-based index (0,1,2,3)
-          uvArray[i * 2 + 1] = 1; // Middle row
+          updateUV(i, adjacentMines - 5, 1); // 0-based index (0,1,2,3)
         }
       }
     } else {
       // Unrevealed tile (hidden) - using the dark gray cell at (3,0)
-      uvArray[i * 2] = 3;
-      uvArray[i * 2 + 1] = 0;
+      updateUV(i, 3, 0);
 
       // Handle flags (using the sprite atlas)
       if (state & FLAGGED) {
         // Red flag at (0,2)
-        uvArray[i * 2] = 0;
-        uvArray[i * 2 + 1] = 0;
+        updateUV(i, 0, 0);
       }
 
       // Handle finished mines (completely boxed in)
       // Blue flag sprite to the right of red flag (1,1)
       if ((state & MINE) && (state & FINISHED)) {
-        uvArray[i * 2] = 1;
-        uvArray[i * 2 + 1] = 0;
+        updateUV(i, 1, 0);
       }
     }
   }
@@ -418,22 +431,26 @@ export function animate(inputPollFunction: () => void) {
   requestAnimationFrame(() => animate(inputPollFunction));
   renderState.controls.update();
   inputPollFunction();
-  
+
   // Save camera position periodically if changed
   const now = Date.now();
-  if (now - lastCameraSave > CAMERA_SAVE_INTERVAL && renderState.controls.hasOwnProperty('changed')) {
+  if (
+    now - lastCameraSave > CAMERA_SAVE_INTERVAL &&
+    renderState.controls.hasOwnProperty("changed")
+  ) {
     saveCameraState();
     lastCameraSave = now;
   }
-  
+
   // Add pulsing animation to gamepad cursor
   const { gamepadCursorMesh } = window.gamepadState;
   if (gamepadCursorMesh && gamepadCursorMesh.visible) {
     // Pulse the opacity between 0.2 and 0.7
     const pulseFactor = (Math.sin(Date.now() * 0.005) + 1) / 2; // 0 to 1 value
-    (gamepadCursorMesh.material as THREE.MeshBasicMaterial).opacity = 0.2 + pulseFactor * 0.5;
+    (gamepadCursorMesh.material as THREE.MeshBasicMaterial).opacity = 0.2 +
+      pulseFactor * 0.5;
   }
-  
+
   // Update keyboard cursor position
   const { keyboardCursorMesh } = renderState;
   const { keyboardState } = window;
@@ -442,119 +459,19 @@ export function animate(inputPollFunction: () => void) {
     keyboardCursorMesh.position.set(
       keyboardState.cursorX,
       0.15, // Keep consistent with initialization
-      keyboardState.cursorZ
+      keyboardState.cursorZ,
     );
-    
+
     // Add pulsing animation to keyboard cursor with different timing
     const keyboardPulseFactor = (Math.sin(Date.now() * 0.006) + 1) / 2; // 0 to 1 value
-    (keyboardCursorMesh.material as THREE.MeshBasicMaterial).opacity = 0.3 + keyboardPulseFactor * 0.5; // Higher base opacity
-    
+    (keyboardCursorMesh.material as THREE.MeshBasicMaterial).opacity = 0.3 +
+      keyboardPulseFactor * 0.5; // Higher base opacity
+
     // Make sure the cursor is visible by default (unless player is disabled)
     if (!keyboardCursorMesh.visible && !window.gameState?.disablePlayer) {
       keyboardCursorMesh.visible = true;
     }
   }
-  
+
   renderState.renderer.render(renderState.scene, renderState.camera);
-}
-
-// Setup UI components
-export function initUI(
-  gameState: GameState, 
-  cellConstants: CellStateConstants,
-  generateBoardFunction: (seed: string) => void,
-  generateRandomSeedFunction: () => string
-) {
-  const generateButton = document.getElementById('generateButton');
-  if (generateButton) {
-    generateButton.addEventListener('click', () => {
-      console.log("Generate button clicked");
-      // use entered seed or generate random
-      const seed = generateRandomSeedFunction();
-      // Reset game state
-      gameState.firstClick = true;
-      gameState.gameStarted = false;
-  
-      // Generate new board
-      generateBoardFunction(seed);
-    });
-  }
-  
-  // Add debug toggle button
-  const debugButton = document.createElement('button');
-  debugButton.id = 'debugButton';
-  debugButton.textContent = 'Debug Mode: OFF';
-  debugButton.addEventListener('click', () => {
-    gameState.debugMode = !gameState.debugMode;
-    debugButton.textContent = `Debug: ${gameState.debugMode ? 'ON' : 'OFF'}`;
-    updateMeshes(gameState, cellConstants);
-  
-    // Show/hide info box based on debug mode
-    const infoBox = document.getElementById('infoBox');
-    if (infoBox) {
-      infoBox.style.display = gameState.debugMode ? 'block' : 'none';
-    }
-  });
-  
-  const controls = document.querySelector('.controls');
-  if (controls) {
-    controls.appendChild(debugButton);
-  }
-  
-  // Create info box for hover information
-  const infoBox = document.createElement('div');
-  infoBox.id = 'infoBox';
-  infoBox.style.position = 'absolute';
-  infoBox.style.bottom = '10px';
-  infoBox.style.left = '10px';
-  infoBox.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-  infoBox.style.color = 'white';
-  infoBox.style.padding = '10px';
-  infoBox.style.borderRadius = '5px';
-  infoBox.style.fontFamily = 'monospace';
-  infoBox.style.display = gameState.debugMode ? 'block' : 'none';
-  document.body.appendChild(infoBox);
-}
-
-// Function to update hover info for debug mode
-export function updateHoverInfo(index: number) {
-  const infoBox = document.getElementById('infoBox');
-  if (!infoBox) return;
-  
-  const x = index % W;
-  const z = Math.floor(index / W);
-  const state = states[index];
-  
-  infoBox.innerHTML = `
-    Position: (${x}, ${z})<br>
-    Index: ${index}<br>
-    State: ${state.toString(2).padStart(8, '0')}<br>
-  `;
-}
-
-export function clearHoverInfo() {
-  const infoBox = document.getElementById('infoBox');
-  if (infoBox) {
-    infoBox.innerHTML = '';
-  }
-}
-
-// Function to setup fade overlay
-export function setupFadeOverlay(): HTMLDivElement {
-  const fadeOverlay = document.createElement('div');
-  fadeOverlay.id = 'fadeOverlay';
-  Object.assign(fadeOverlay.style, {
-    position: 'fixed',
-    top: '0',
-    left: '0',
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'black',
-    opacity: '0',
-    pointerEvents: 'none',
-    transition: 'opacity 0.25s ease',
-    zIndex: '9999',
-  });
-  document.body.appendChild(fadeOverlay);
-  return fadeOverlay;
 }

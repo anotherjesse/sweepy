@@ -1,6 +1,8 @@
 import * as THREE from 'three';
-import { W, H, N, gameState, revealCell, toggleFlag } from './game';
-import { renderState, updateHoverInfo, clearHoverInfo, zoomIn, zoomOut } from './render';
+import * as config from './config';
+import {  gameState, revealCell, toggleFlag } from './game';
+import { renderState,  zoomIn, zoomOut } from './render';
+import { updateHoverInfo, clearHoverInfo } from './ui';
 import { gamepadState } from './gamepad';
 
 
@@ -61,10 +63,10 @@ export function onPointerMove(event: MouseEvent) {
       const z = Math.floor(point.z);
 
       // Calculate the cell index from x,z coordinates
-      gameState.hoveredCellIndex = x + z * W;
+      gameState.hoveredCellIndex = x + z * config.W;
 
       // Ensure cell index is valid
-      if (gameState.hoveredCellIndex >= 0 && gameState.hoveredCellIndex < N) {
+      if (gameState.hoveredCellIndex >= 0 && gameState.hoveredCellIndex < config.N) {
         updateHoverInfo(gameState.hoveredCellIndex);
       } else {
         gameState.hoveredCellIndex = -1;
@@ -139,7 +141,7 @@ export function onPointerUp(event: MouseEvent) {
     const fadeOverlay = document.getElementById('fadeOverlay') as HTMLDivElement;
     
     if (event.button === 0) {
-      revealCell(currentCellIndex, fadeOverlay, gamepadState);
+      revealCell(currentCellIndex, gamepadState);
     } else if (event.button === 2) {
       toggleFlag(currentCellIndex);
     }

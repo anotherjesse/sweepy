@@ -1,4 +1,5 @@
-import { H, revealCell, toggleFlag, W } from "./game";
+import * as config from "./config";
+import { revealCell, toggleFlag } from "./game";
 import { renderState, zoomIn, zoomOut } from "./render";
 
 // Extend GamepadButton interface
@@ -22,7 +23,7 @@ export type GamepadState = {
 export const gamepadState: GamepadState = {
   gamepadCursorX: 500, // Start at center of board
   gamepadCursorZ: 500,
-  gamepadCursorIndex: 500 + 500 * W,
+  gamepadCursorIndex: 500 + 500 * config.W,
   gamepadCursorMesh: null,
   lastGamepadTimestamp: 0,
   gamepads: {},
@@ -44,10 +45,10 @@ export function connectGamepad(e: GamepadEvent) {
     // Move cursor to center of current view
     const centerX = Math.floor(renderState.camera.position.x);
     const centerZ = Math.floor(renderState.camera.position.z);
-    gamepadState.gamepadCursorX = Math.min(Math.max(centerX, 0), W - 1);
-    gamepadState.gamepadCursorZ = Math.min(Math.max(centerZ, 0), H - 1);
+    gamepadState.gamepadCursorX = Math.min(Math.max(centerX, 0), config.W - 1);
+    gamepadState.gamepadCursorZ = Math.min(Math.max(centerZ, 0), config.H - 1);
     gamepadState.gamepadCursorIndex = gamepadState.gamepadCursorX +
-      gamepadState.gamepadCursorZ * W;
+      gamepadState.gamepadCursorZ * config.W;
     updateGamepadCursor();
   }
 }
@@ -72,7 +73,7 @@ export function updateGamepadCursor() {
   if (!gamepadCursorMesh) return;
 
   gamepadCursorMesh.position.set(gamepadCursorX, 0.1, gamepadCursorZ);
-  gamepadState.gamepadCursorIndex = gamepadCursorX + gamepadCursorZ * W;
+  gamepadState.gamepadCursorIndex = gamepadCursorX + gamepadCursorZ * config.W;
 
   // Move camera if cursor approaches edge of view
   const padding = 5; // Cells from edge to trigger camera move
@@ -134,7 +135,7 @@ export function pollGamepads() {
     // Down (button 13 or left stick/d-pad down)
     if (gamepad.buttons[13]?.pressed || gamepad.axes[1] > 0.5) {
       gamepadState.gamepadCursorZ = Math.min(
-        H - 1,
+        config.H - 1,
         gamepadState.gamepadCursorZ + 1,
       );
       moved = true;
@@ -150,7 +151,7 @@ export function pollGamepads() {
     // Right (button 15 or left stick/d-pad right)
     if (gamepad.buttons[15]?.pressed || gamepad.axes[0] > 0.5) {
       gamepadState.gamepadCursorX = Math.min(
-        W - 1,
+        config.W - 1,
         gamepadState.gamepadCursorX + 1,
       );
       moved = true;
@@ -178,11 +179,7 @@ export function pollGamepads() {
       gamepad.buttons[0]?.pressed &&
       !(gamepad.buttons[0] as any).previouslyPressed
     ) {
-      // We need the fadeOverlay from the main file
-      const fadeOverlay = document.getElementById(
-        "fadeOverlay",
-      ) as HTMLDivElement;
-      revealCell(gamepadState.gamepadCursorIndex, fadeOverlay, gamepadState);
+      revealCell(gamepadState.gamepadCursorIndex, gamepadState);
       (gamepad.buttons[0] as any).previouslyPressed = true;
     } else if (!gamepad.buttons[0]?.pressed) {
       (gamepad.buttons[0] as any).previouslyPressed = false;

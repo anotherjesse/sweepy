@@ -1,11 +1,10 @@
+import * as config from "./config";
 import {
   gameState,
-  H,
-  N,
   registerKeyboardReset,
   revealCell,
+  startTeleport,
   toggleFlag,
-  W,
 } from "./game";
 import { renderState, zoomIn, zoomOut } from "./render";
 import { gamepadState } from "./gamepad";
@@ -26,7 +25,7 @@ export const keyboardState: KeyboardState = {
   moveSpeed: 1,
   cursorX: 500, // Start at center of board
   cursorZ: 500, // Start at center of board
-  cursorIndex: 500 + 500 * W,
+  cursorIndex: 500 + 500 * config.W,
   zoomSpeed: 1.1,
   processedKeys: new Set<string>(),
 };
@@ -49,21 +48,21 @@ export function onKeyDown(event: KeyboardEvent) {
       return;
     }
   }
-  
+
   // Handle dark mode toggle with 'm' key
   if (event.code === "KeyM" || event.key === "m") {
     const isDarkMode = document.body.classList.toggle("dark-mode");
     console.log(`Dark mode ${isDarkMode ? "enabled" : "disabled"}`);
-    
+
     // Import dynamically to avoid circular dependency
-    import('./persist').then(({ loadPreferences, updatePreferences }) => {
-      loadPreferences().then(prefs => {
+    import("./persist").then(({ loadPreferences, updatePreferences }) => {
+      loadPreferences().then((prefs) => {
         updatePreferences({
-          darkMode: isDarkMode
+          darkMode: isDarkMode,
         });
       });
     });
-    
+
     return;
   }
 
@@ -87,6 +86,10 @@ export function onKeyDown(event: KeyboardEvent) {
 
     // Movement keys - WASD/Arrows (process on initial keydown)
     switch (event.code) {
+      case "KeyT":
+        startTeleport();
+        break;
+
       case "KeyW":
       case "ArrowUp":
         renderState.camera.position.z -= keyboardState.moveSpeed;
@@ -140,14 +143,14 @@ export function onKeyDown(event: KeyboardEvent) {
       // Keep cursor position within board bounds
       keyboardState.cursorX = Math.max(
         0,
-        Math.min(W - 1, Math.floor(keyboardState.cursorX)),
+        Math.min(config.W - 1, Math.floor(keyboardState.cursorX)),
       );
       keyboardState.cursorZ = Math.max(
         0,
-        Math.min(H - 1, Math.floor(keyboardState.cursorZ)),
+        Math.min(config.H - 1, Math.floor(keyboardState.cursorZ)),
       );
       keyboardState.cursorIndex = keyboardState.cursorX +
-        keyboardState.cursorZ * W;
+        keyboardState.cursorZ * config.W;
 
       // Update hovered cell index for consistency with cursor
       gameState.hoveredCellIndex = keyboardState.cursorIndex;
@@ -176,10 +179,7 @@ export function onKeyDown(event: KeyboardEvent) {
     case "Space":
     case "Enter":
       // Select/reveal current cell
-      const fadeOverlay = document.getElementById(
-        "fadeOverlay",
-      ) as HTMLDivElement;
-      revealCell(keyboardState.cursorIndex, fadeOverlay, gamepadState);
+      revealCell(keyboardState.cursorIndex, gamepadState);
       break;
     case "KeyF":
       // Flag current cell
@@ -202,7 +202,7 @@ export function resetKeyboardCursor(x: number, z: number) {
   // Reset cursor position
   keyboardState.cursorX = x;
   keyboardState.cursorZ = z;
-  keyboardState.cursorIndex = x + z * W;
+  keyboardState.cursorIndex = x + z * config.W;
 
   // Clear all active keys and processed keys to ensure keyboard controls work after death
   activeKeys.clear();

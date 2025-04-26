@@ -109,7 +109,7 @@ const FLAG_COLOR = new THREE.Color(1.0, 0.0, 0.0);
 
 // --- Three.js SETUP ---
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x333333);
+scene.background = new THREE.Color(0xff8800);
 
 // Use OrthographicCamera for a true 2D map feel as specified in README
 const camera = new THREE.OrthographicCamera(
@@ -189,7 +189,7 @@ function initMeshes() {
   boardGeo.rotateX(-Math.PI / 2);
   window.boardGeo = boardGeo;
   const boardMat = new THREE.MeshBasicMaterial({
-    color: 0x444444,
+    color: 0x0088ff,
   });
   const boardMesh = new THREE.Mesh(boardGeo, boardMat);
   boardMesh.position.set(W / 2, -0.1, H / 2); // Slightly below the cells
@@ -262,6 +262,16 @@ function initMeshes() {
     cellMesh.setMatrixAt(i, dummy.matrix);
   }
   cellMesh.instanceMatrix.needsUpdate = true;
+  
+  // Manually compute and set bounding box for proper frustum culling
+  cellMesh.geometry.boundingBox = new THREE.Box3(
+    new THREE.Vector3(0, -0.1, 0),
+    new THREE.Vector3(W, 0.1, H)
+  );
+  cellMesh.geometry.boundingSphere = new THREE.Sphere(
+    new THREE.Vector3(W/2, 0, H/2),
+    Math.sqrt(W*W + H*H)/2
+  );
 
   // Simple flag mesh for now (can be replaced with sprite later)
   const flagGeo = new THREE.ConeGeometry(0.3, 0.6, 3);
@@ -270,6 +280,16 @@ function initMeshes() {
   flagMesh = new THREE.InstancedMesh(flagGeo, flagMat, N);
   flagMesh.frustumCulled = true;
   flagMesh.count = 0; // Start with no flags visible
+  
+  // Set bounding box for flags too
+  flagMesh.geometry.boundingBox = new THREE.Box3(
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(W, 1, H)
+  );
+  flagMesh.geometry.boundingSphere = new THREE.Sphere(
+    new THREE.Vector3(W/2, 0.5, H/2),
+    Math.sqrt(W*W + H*H)/2
+  );
 
   scene.add(cellMesh);
   scene.add(flagMesh);

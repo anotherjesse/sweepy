@@ -20,70 +20,15 @@ const MINE = 0x40;       // 01000000
 // Use Uint8Array for memory efficiency (1 byte per cell) as specified in README
 const states = new Uint8Array(N);
 
-function createDigitAtlas() {
-  // Create a 256×256 texture atlas as specified in README
-  const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
+// Sprite info - 128x96 with 4x3 grid
+const SPRITE_COLS = 4;
+const SPRITE_ROWS = 3;
+const SPRITE_CELL_WIDTH = 1/SPRITE_COLS;  // 0.25
+const SPRITE_CELL_HEIGHT = 1/SPRITE_ROWS; // 0.333...
 
-  // Fill with black background
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, 256, 256);
-  
-  const tileSize = 16; // 16×16 tiles in a 256×256 atlas
-  
-  // Row 0: hidden, flag, mine, error
-  // Hidden cell
-  ctx.fillStyle = '#777';
-  ctx.beginPath();
-  ctx.roundRect(0, 0, tileSize, tileSize, 2);
-  ctx.fill();
-  
-  // Flag
-  ctx.fillStyle = '#00f';
-  ctx.beginPath();
-  ctx.moveTo(tileSize + 4, 2);
-  ctx.lineTo(tileSize + 12, 6);
-  ctx.lineTo(tileSize + 4, 10);
-  ctx.fill();
-  ctx.fillRect(tileSize + 4, 2, 2, 12);
-  
-  // Mine
-  ctx.fillStyle = '#000';
-  ctx.beginPath();
-  ctx.arc(tileSize * 2 + 8, 8, 6, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Error (placeholder)
-  ctx.fillStyle = '#f00';
-  ctx.fillRect(tileSize * 3, 0, tileSize, tileSize);
-  
-  // Row 1: Numbers 0-8
-  ctx.font = '12px monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  
-  for (let i = 0; i <= 8; i++) {
-    const x = i * tileSize;
-    const y = tileSize;
-    
-    // Background
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(x, y, tileSize, tileSize);
-    
-    // Number
-    ctx.fillStyle = palette[i].getStyle();
-    ctx.fillText(i.toString(), x + tileSize/2, y + tileSize/2);
-  }
-  
-  // Row 2: hover, explode (placeholders)
-  ctx.fillStyle = '#aaa';
-  ctx.fillRect(0, tileSize * 2, tileSize, tileSize);
-  ctx.fillStyle = '#faa';
-  ctx.fillRect(tileSize, tileSize * 2, tileSize, tileSize);
-  
-  const texture = new THREE.CanvasTexture(canvas);
+function loadSpriteAtlas() {
+  // Load the sprite.png file
+  const texture = new THREE.TextureLoader().load('sprite.png');
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.NearestFilter;
   return texture;
@@ -109,7 +54,7 @@ const FLAG_COLOR = new THREE.Color(1.0, 0.0, 0.0);
 
 // --- Three.js SETUP ---
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xff8800);
+scene.background = new THREE.Color(0x333333);
 
 // Use OrthographicCamera for a true 2D map feel as specified in README
 const camera = new THREE.OrthographicCamera(
@@ -123,8 +68,12 @@ const camera = new THREE.OrthographicCamera(
 // Position the camera directly above looking straight down (z-axis is height)
 camera.position.set(W / 2, 100, H / 2); // Center above the board
 camera.lookAt(W / 2, 0, H / 2); // Look at center of board
+camera.zoom = 20; // Set a higher default zoom level
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+// Call this to apply the zoom
+camera.updateProjectionMatrix();
+
+const renderer = new THREE.WebGLRenderer({ antialias: false });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
@@ -193,37 +142,37 @@ function initMeshes() {
   });
   const boardMesh = new THREE.Mesh(boardGeo, boardMat);
   boardMesh.position.set(W / 2, -0.1, H / 2); // Slightly below the cells
-  scene.add(boardMesh);
+  // scene.add(boardMesh);
 
   // Create a plane geometry for cells - ensure they're square
   const cellGeo = new THREE.PlaneGeometry(0.9, 0.9);
   // Make sure cells are flat on XZ plane
   cellGeo.rotateX(-Math.PI / 2);
 
-  // Create the texture atlas
-  const digitTexture = createDigitAtlas();
+  // Load the sprite texture
+  const spriteTexture = loadSpriteAtlas();
 
   // Create custom attributes for the instanced mesh
   const offsets = new Float32Array(N * 2); // x, z offsets
   const uvs = new Float32Array(N * 2);     // texture atlas offsets
 
-  // Initialize all cells as hidden (0,0 in atlas)
+  // Initialize all cells as hidden (use empty tile at position (2,2) in atlas)
   for (let i = 0; i < N; i++) {
     const x = i % W, z = Math.floor(i / W);
     offsets[i * 2] = x;
     offsets[i * 2 + 1] = z;
-    uvs[i * 2] = 0;     // Hidden tile (default)
-    uvs[i * 2 + 1] = 0; // Top row of atlas
+    uvs[i * 2] = 2;     // Empty tile (col 3, 0-indexed)
+    uvs[i * 2 + 1] = 2; // Bottom row (row 3, 0-indexed)
   }
 
   // Add attributes to geometry
   cellGeo.setAttribute('aOffset', new THREE.InstancedBufferAttribute(offsets, 2));
   cellGeo.setAttribute('aUV', new THREE.InstancedBufferAttribute(uvs, 2));
 
-  // Create shader material as specified in README
+  // Create shader material for the sprite sheet
   const cellMat = new THREE.ShaderMaterial({
     uniforms: {
-      atlas: { value: digitTexture }
+      atlas: { value: spriteTexture }
     },
     vertexShader: `
       attribute vec2 aOffset;
@@ -231,7 +180,9 @@ function initMeshes() {
       varying vec2 vUv;
       void main() {
         // Use the built-in uv attribute from THREE.PlaneGeometry
-        vUv = aUV + uv / 16.0; // 16x16 tiles in atlas
+        // Map to 4x3 grid (SPRITE_COLS=4, SPRITE_ROWS=3)
+        vUv = vec2(aUV.x * ${SPRITE_CELL_WIDTH} + uv.x * ${SPRITE_CELL_WIDTH}, 
+                   aUV.y * ${SPRITE_CELL_HEIGHT} + uv.y * ${SPRITE_CELL_HEIGHT});
         vec3 pos = position;
         // Position cells in XZ plane
         pos.x += aOffset.x;
@@ -313,27 +264,38 @@ function updateMeshes() {
     // Update UV coordinates based on cell state
     if ((state & REVEALED) || debugMode) {
       if (state & MINE) {
-        // Mine tile at position (2,0) in the atlas
-        uvArray[i * 2] = 2;
-        uvArray[i * 2 + 1] = 0;
+        // Use red flag at position (0,2) in the atlas (bottom left)
+        uvArray[i * 2] = 0;
+        uvArray[i * 2 + 1] = 2;
       } else {
-        // Number tiles (0-8) at row 1
+        // Number tiles (1-8) in first two rows
         const adjacentMines = (state & NUMBER_MASK);
-        uvArray[i * 2] = adjacentMines;
-        uvArray[i * 2 + 1] = 1;
+        if (adjacentMines === 0) {
+          // Empty revealed cell - using empty tile at (2,2)
+          uvArray[i * 2] = 2;
+          uvArray[i * 2 + 1] = 2;
+        } else if (adjacentMines <= 4) {
+          // Numbers 1-4 in top row
+          uvArray[i * 2] = adjacentMines - 1; // 0-based index (0,1,2,3)
+          uvArray[i * 2 + 1] = 0; // Top row
+        } else {
+          // Numbers 5-8 in middle row
+          uvArray[i * 2] = adjacentMines - 5; // 0-based index (0,1,2,3)
+          uvArray[i * 2 + 1] = 1; // Middle row
+        }
       }
     } else {
-      // Unrevealed tile (hidden) at position (0,0)
-      uvArray[i * 2] = 0;
-      uvArray[i * 2 + 1] = 0;
+      // Unrevealed tile (hidden) - using empty cell at (2,2)
+      uvArray[i * 2] = 2;
+      uvArray[i * 2 + 1] = 2;
     }
 
     // Handle flags
     if (state & FLAGGED) {
-      // Flag position in atlas (1,0)
       if (!((state & REVEALED) || debugMode)) {
-        uvArray[i * 2] = 1;
-        uvArray[i * 2 + 1] = 0;
+        // Choose between red flag (0,2) or blue flag (1,2)
+        uvArray[i * 2] = 1; // Blue flag at (1,2)
+        uvArray[i * 2 + 1] = 2; // Bottom row
       }
       
       // Add physical flag for 3D effect (optional)
@@ -620,7 +582,7 @@ function onWheel(event) {
   camera.zoom *= (delta > 0) ? 0.9 : 1.1;
   
   // Clamp zoom between 0.5 and 20 as specified in README
-  camera.zoom = Math.min(Math.max(camera.zoom, 0.5), 20);
+  camera.zoom = Math.min(Math.max(camera.zoom, 10), 50);
 
   camera.updateProjectionMatrix();
 }

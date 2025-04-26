@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { BOARD_SIZE, W, H, N, states } from './game';
+import {  W, H, N, states } from './game';
 import type { GameState, CellStateConstants } from './game';
 import type { GamepadState } from './gamepad';
-import type { KeyboardState } from './keyboard';
+import { loadPreferences, updatePreferences } from './persist';
 
 // Extended OrbitControls type to add missing properties
 export type ExtendedOrbitControls = OrbitControls & {
@@ -76,14 +76,43 @@ export function applyZoomConstraints() {
   renderState.camera.updateProjectionMatrix();
 }
 
+// Save camera state to preferences
+export async function saveCameraState() {
+  await updatePreferences({
+    cameraPosition: {
+      x: renderState.camera.position.x,
+      y: renderState.camera.position.y,
+      z: renderState.camera.position.z
+    },
+    zoom: renderState.camera.zoom
+  });
+}
+
 // Initialize the renderer
-export function initRenderer() {
+export async function initRenderer() {
   renderState.scene.background = new THREE.Color(0x333333);
   
+  // Try to load saved camera position from preferences
+  const prefs = await loadPreferences();
+  
+  // Default position (center of board looking down)
+  const defaultPosition = { x: W / 2, y: 100, z: H / 2 };
+  const defaultTarget = { x: W / 2, y: 0, z: H / 2 };
+  
   // Position the camera directly above looking straight down (z-axis is height)
-  renderState.camera.position.set(W / 2, 100, H / 2);
-  renderState.camera.lookAt(W / 2, 0, H / 2);
-  renderState.camera.zoom = 20; // Set a higher default zoom level
+  if (prefs?.cameraPosition) {
+    renderState.camera.position.set(
+      prefs.cameraPosition.x,
+      prefs.cameraPosition.y,
+      prefs.cameraPosition.z
+    );
+  } else {
+    renderState.camera.position.set(defaultPosition.x, defaultPosition.y, defaultPosition.z);
+  }
+  
+  renderState.camera.lookAt(defaultTarget.x, defaultTarget.y, defaultTarget.z);
+  // Set zoom level from preferences or use default
+  renderState.camera.zoom = prefs?.zoom || 20; // Default zoom level if not found
   
   // Apply zoom
   renderState.camera.updateProjectionMatrix();
@@ -99,7 +128,18 @@ export function initRenderer() {
   renderState.controls.enableZoom = true;
   renderState.controls.enableRotate = false;
   renderState.controls.screenSpacePanning = true;
-  renderState.controls.target.set(W / 2, 0, H / 2); // Set target to center of board
+  
+  // Set target from saved preferences or default
+  if (prefs?.targetPosition) {
+    renderState.controls.target.set(
+      prefs.targetPosition.x,
+      prefs.targetPosition.y,
+      prefs.targetPosition.z
+    );
+  } else {
+    renderState.controls.target.set(defaultTarget.x, defaultTarget.y, defaultTarget.z);
+  }
+  
   renderState.controls.mouseButtons = {
     LEFT: THREE.MOUSE.LEFT,
     MIDDLE: THREE.MOUSE.MIDDLE,
@@ -370,10 +410,21 @@ export function handleResize() {
   renderState.renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
+// Track when we last saved camera state to avoid saving too frequently
+let lastCameraSave = 0;
+const CAMERA_SAVE_INTERVAL = 1000; // Save at most once per second
+
 export function animate(inputPollFunction: () => void) {
   requestAnimationFrame(() => animate(inputPollFunction));
   renderState.controls.update();
   inputPollFunction();
+  
+  // Save camera position periodically if changed
+  const now = Date.now();
+  if (now - lastCameraSave > CAMERA_SAVE_INTERVAL && renderState.controls.hasOwnProperty('changed')) {
+    saveCameraState();
+    lastCameraSave = now;
+  }
   
   // Add pulsing animation to gamepad cursor
   const { gamepadCursorMesh } = window.gamepadState;

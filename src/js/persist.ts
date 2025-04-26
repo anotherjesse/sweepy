@@ -3,6 +3,15 @@ import { set, get } from 'idb-keyval';
 // Track pending changes to be saved
 let dirty: ArrayBuffer | null = null;
 
+// Define user preferences type
+export interface UserPreferences {
+  darkMode?: boolean;
+  cameraPosition?: { x: number; y: number; z: number };
+  targetPosition?: { x: number; y: number; z: number };
+  zoom?: number;
+  seed?: string;
+}
+
 // Mark state as dirty for saving in the next cycle
 export async function saveState(states: Uint8Array) {
   dirty = states.buffer;
@@ -12,6 +21,16 @@ export async function saveState(states: Uint8Array) {
 export async function loadState(): Promise<Uint8Array | null> {
   const buf = await get<ArrayBuffer>("gameState");
   return buf ? new Uint8Array(buf) : null;
+}
+
+export async function updatePreferences(prefs: Partial<UserPreferences>): Promise<void> {
+  const currentPrefs = await loadPreferences() || { darkMode: false };
+  return set('userPreferences', { ...currentPrefs, ...prefs });
+}
+
+export async function loadPreferences(): Promise<UserPreferences | null> {
+  const prefs = await get<UserPreferences>('userPreferences');
+  return prefs || null;
 }
 
 // Set up periodic saving (4 times per second)

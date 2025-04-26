@@ -386,8 +386,13 @@ export function saveGameData(seed: string) {
     gameState.currentSeed = seed;
     saveState(states);
     
-    // Also store the seed separately
+    // Also store the seed separately in localStorage as a fallback
     localStorage.setItem('gameSeed', seed);
+    
+    // Import dynamically to avoid circular dependency
+    import('./persist').then(({ updatePreferences }) => {
+        updatePreferences({ seed });
+    });
 }
 
 // Load game data from IndexedDB
@@ -395,12 +400,24 @@ export async function loadGameData(): Promise<boolean> {
     // Load game state
     const savedState = await loadState();
     
+    // Try to load preferences (including seed)
+    const { loadPreferences } = await import('./persist');
+    const prefs = await loadPreferences();
+    
+    // First check if we have the board state
     if (savedState) {
         // Copy saved state to our game state array
         states.set(savedState);
         
-        // Load the seed
-        const savedSeed = localStorage.getItem('gameSeed');
+        // Try to get seed from preferences first, then fallback to localStorage
+        let savedSeed = prefs?.seed;
+        if (!savedSeed) {
+            const localStorageSeed = localStorage.getItem('gameSeed');
+            if (localStorageSeed) {
+                savedSeed = localStorageSeed;
+            }
+        }
+        
         if (savedSeed) {
             gameState.currentSeed = savedSeed;
             gameState.gameStarted = true;

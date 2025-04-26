@@ -49,7 +49,7 @@ window.gameState = gameState;
 // Initialize the application
 async function init() {
   // Setup rendering
-  initRenderer();
+  await initRenderer();
   
   // Create fade overlay for death transition
   const fadeOverlay = setupFadeOverlay();
@@ -114,25 +114,55 @@ function initEventListeners() {
   window.addEventListener('gamepaddisconnected', disconnectGamepad);
 }
 
-// Check system preference for dark mode
-function setupColorScheme() {
-  const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  if (prefersDarkMode) {
-    document.body.classList.add('dark-mode');
-  }
+// Import user preferences functions
+import { loadPreferences, updatePreferences, UserPreferences } from './persist';
 
-  // Listen for system changes to color scheme
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-    if (event.matches) {
+// Check system preference for dark mode
+async function setupColorScheme() {
+  // Try to load user preferences first
+  const prefs = await loadPreferences();
+  
+  if (prefs && typeof prefs.darkMode !== 'undefined') {
+    // Use saved preference if available
+    if (prefs.darkMode) {
       document.body.classList.add('dark-mode');
     } else {
       document.body.classList.remove('dark-mode');
+    }
+  } else {
+    // Fall back to system preference if no saved preference
+    const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (prefersDarkMode) {
+      document.body.classList.add('dark-mode');
+    }
+    
+    // Create initial preferences object
+    await updatePreferences({
+      darkMode: prefersDarkMode
+    });
+  }
+
+  // Listen for system changes to color scheme
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', async event => {
+    // Only update based on system if user hasn't manually set preference
+    const currentPrefs = await loadPreferences();
+    if (!currentPrefs || currentPrefs.darkMode === undefined) {
+      if (event.matches) {
+        document.body.classList.add('dark-mode');
+      } else {
+        document.body.classList.remove('dark-mode');
+      }
+      
+      // Save the new system preference
+      await updatePreferences({
+        darkMode: event.matches
+      });
     }
   });
 }
 
 // Start the application when DOM is ready
-window.addEventListener('DOMContentLoaded', () => {
-  setupColorScheme();
+window.addEventListener('DOMContentLoaded', async () => {
+  await setupColorScheme();
   init();
 }); 

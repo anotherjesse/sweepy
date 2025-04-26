@@ -1,9 +1,8 @@
 import * as THREE from 'three';
-import * as config from './config';
-import {  gameState, revealCell, toggleFlag } from './game';
-import { renderState,  zoomIn, zoomOut } from './render';
-import { updateHoverInfo, clearHoverInfo } from './ui';
-import { gamepadState } from './gamepad';
+import * as config from '../config';
+import {  gameState, revealCell, toggleFlag } from '../game';
+import { renderState,  zoomIn, zoomOut } from '../gfx/render';
+import { updateHoverInfo, clearHoverInfo } from '../gfx/ui';
 
 
 // Mouse state interface

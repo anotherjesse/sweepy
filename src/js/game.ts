@@ -1,9 +1,9 @@
 import seedrandom from "seedrandom";
 import SimplexNoise from "simplex-noise";
-import { gamepadState } from "./gamepad";
-import { renderState, updateMeshes } from "./render";
+import { gamepadState } from "./input/gamepad";
+import { renderState, updateMeshes } from "./gfx/render";
 import { loadState, saveState, updatePreferences } from "./persist";
-import { fade, unfade } from "./ui";
+import { fade, unfade } from "./gfx/ui";
 import * as config from "./config";
 
 // Game state type

@@ -1,6 +1,6 @@
-import { gameState, generateBoard, states } from "./game";
-import { updateMeshes } from "./render";
-import * as config from "./config";
+import { gameState, generateBoard, states } from "../game";
+import { updateMeshes } from "../gfx/render";
+import * as config from "../config";
 
 let fadeOverlay: HTMLDivElement | null = null;
 

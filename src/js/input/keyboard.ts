@@ -1,14 +1,13 @@
-import * as config from "./config";
+import * as config from "../config";
 import {
   gameState,
   registerKeyboardReset,
   revealCell,
   startTeleport,
   toggleFlag,
-} from "./game";
-import { renderState, zoomIn, zoomOut } from "./render";
-import { gamepadState } from "./gamepad";
-import { updatePreferences } from "./persist";
+} from "../game";
+import { renderState, zoomIn, zoomOut } from "../gfx/render";
+import { updatePreferences } from "../persist";
 
 // Keyboard state interface
 export type KeyboardState = {

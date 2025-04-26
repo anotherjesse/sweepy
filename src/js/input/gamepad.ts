@@ -1,6 +1,6 @@
-import * as config from "./config";
-import { revealCell, toggleFlag } from "./game";
-import { renderState, zoomIn, zoomOut } from "./render";
+import * as config from "../config";
+import { revealCell, toggleFlag } from "../game";
+import { renderState, zoomIn, zoomOut } from "../gfx/render";
 
 // Extend GamepadButton interface
 export type GamepadButton = {

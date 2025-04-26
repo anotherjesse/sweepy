@@ -1,17 +1,3 @@
-import * as THREE from 'three';
-
-// Window with custom properties
-type Window = {
-  boardGeo: THREE.PlaneGeometry;
-  gamepadState: any;
-};
-
-// Extend HTMLLinkElement for favicon
-type CustomHTMLLinkElement = HTMLElement & {
-  rel: string;
-  href: string;
-};
-
 // Make TypeScript happy with simplex-noise
 declare module 'simplex-noise' {
   export default class SimplexNoise {

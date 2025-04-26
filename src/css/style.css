@@ -1,6 +1,7 @@
 body { 
   margin: 0; 
-  overflow: hidden; 
+  overflow: hidden;
+  font-family: 'Arial', sans-serif;
 }
 
 #ui {
@@ -8,16 +9,65 @@ body {
   top: 10px;
   left: 10px;
   z-index: 100;
-  background: rgba(255,255,255,0.8);
-  padding: 8px;
-  border-radius: 4px;
-  font-family: sans-serif;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  max-width: 300px;
+}
+
+h1 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 24px;
+  color: #333;
+}
+
+.controls {
+  display: flex;
+  margin-bottom: 16px;
 }
 
 #seedInput {
-  width: 180px;
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
 }
 
 button {
   margin-left: 8px;
+  padding: 8px 12px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+#debugButton {
+  background-color: #f44336;
+  margin-top: 8px;
+  margin-left: 0;
+  width: 100%;
+}
+
+#debugButton:hover {
+  background-color: #d32f2f;
+}
+
+.instructions {
+  border-top: 1px solid #ccc;
+  padding-top: 12px;
+}
+
+.instructions p {
+  margin: 6px 0;
+  font-size: 14px;
 } 

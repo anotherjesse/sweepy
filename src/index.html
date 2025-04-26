@@ -2,13 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Large Minecraft Board Renderer</title>
+  <title>Millionsweeper</title>
   <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
   <div id="ui">
-    <input id="seedInput" type="text" placeholder="Enter seed" />
-    <button id="generateButton">Generate Map</button>
+    <h1>Millionsweeper</h1>
+    <div class="controls">
+      <button id="generateButton">Generate Map</button>
+    </div>
+    <div class="instructions">
+      <p>Left click: Reveal cell</p>
+      <p>Right click: Place flag</p>
+      <p>Mouse wheel: Zoom in/out</p>
+      <p>Debug toggle: Show all cells</p>
+    </div>
   </div>
 
   <script type="module" src="./js/main.js"></script>

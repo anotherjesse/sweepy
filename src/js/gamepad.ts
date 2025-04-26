@@ -1,6 +1,22 @@
-import { W, H, revealCell, toggleFlag } from './game';
-import { renderState } from './render';
-import type { GamepadState } from './types';
+import { H, revealCell, toggleFlag, W } from "./game";
+import { renderState } from "./render";
+
+// Extend GamepadButton interface
+export type GamepadButton = {
+  pressed: boolean;
+  previouslyPressed?: boolean;
+};
+
+// Gamepad state interface
+export type GamepadState = {
+  gamepadCursorX: number;
+  gamepadCursorZ: number;
+  gamepadCursorIndex: number;
+  gamepadCursorMesh: THREE.Mesh | null;
+  lastGamepadTimestamp: number;
+  gamepads: Record<number, Gamepad>;
+  hasGamepad: boolean;
+}
 
 // Create the gamepad state object
 export const gamepadState: GamepadState = {
@@ -10,7 +26,7 @@ export const gamepadState: GamepadState = {
   gamepadCursorMesh: null,
   lastGamepadTimestamp: 0,
   gamepads: {},
-  hasGamepad: false
+  hasGamepad: false,
 };
 
 // Gamepad throttle time
@@ -30,7 +46,8 @@ export function connectGamepad(e: GamepadEvent) {
     const centerZ = Math.floor(renderState.camera.position.z);
     gamepadState.gamepadCursorX = Math.min(Math.max(centerX, 0), W - 1);
     gamepadState.gamepadCursorZ = Math.min(Math.max(centerZ, 0), H - 1);
-    gamepadState.gamepadCursorIndex = gamepadState.gamepadCursorX + gamepadState.gamepadCursorZ * W;
+    gamepadState.gamepadCursorIndex = gamepadState.gamepadCursorX +
+      gamepadState.gamepadCursorZ * W;
     updateGamepadCursor();
   }
 }
@@ -51,7 +68,7 @@ export function disconnectGamepad(e: GamepadEvent) {
 // Update the position of the gamepad cursor
 export function updateGamepadCursor() {
   const { gamepadCursorMesh, gamepadCursorX, gamepadCursorZ } = gamepadState;
-  
+
   if (!gamepadCursorMesh) return;
 
   gamepadCursorMesh.position.set(gamepadCursorX, 0.1, gamepadCursorZ);
@@ -108,22 +125,34 @@ export function pollGamepads() {
 
     // Up (button 12 or left stick/d-pad up)
     if (gamepad.buttons[12]?.pressed || gamepad.axes[1] < -0.5) {
-      gamepadState.gamepadCursorZ = Math.max(0, gamepadState.gamepadCursorZ - 1);
+      gamepadState.gamepadCursorZ = Math.max(
+        0,
+        gamepadState.gamepadCursorZ - 1,
+      );
       moved = true;
     }
     // Down (button 13 or left stick/d-pad down)
     if (gamepad.buttons[13]?.pressed || gamepad.axes[1] > 0.5) {
-      gamepadState.gamepadCursorZ = Math.min(H - 1, gamepadState.gamepadCursorZ + 1);
+      gamepadState.gamepadCursorZ = Math.min(
+        H - 1,
+        gamepadState.gamepadCursorZ + 1,
+      );
       moved = true;
     }
     // Left (button 14 or left stick/d-pad left)
     if (gamepad.buttons[14]?.pressed || gamepad.axes[0] < -0.5) {
-      gamepadState.gamepadCursorX = Math.max(0, gamepadState.gamepadCursorX - 1);
+      gamepadState.gamepadCursorX = Math.max(
+        0,
+        gamepadState.gamepadCursorX - 1,
+      );
       moved = true;
     }
     // Right (button 15 or left stick/d-pad right)
     if (gamepad.buttons[15]?.pressed || gamepad.axes[0] > 0.5) {
-      gamepadState.gamepadCursorX = Math.min(W - 1, gamepadState.gamepadCursorX + 1);
+      gamepadState.gamepadCursorX = Math.min(
+        W - 1,
+        gamepadState.gamepadCursorX + 1,
+      );
       moved = true;
     }
 
@@ -136,24 +165,33 @@ export function pollGamepads() {
     // Button 4 (L1 on PlayStation, LB on Xbox) - Zoom out
     if (gamepad.buttons[4]?.pressed) {
       renderState.camera.zoom *= 0.95; // Zoom out
-      renderState.camera.zoom = Math.min(Math.max(renderState.camera.zoom, 10), 50); // Clamp zoom
+      renderState.camera.zoom = Math.min(
+        Math.max(renderState.camera.zoom, 10),
+        50,
+      ); // Clamp zoom
       renderState.camera.updateProjectionMatrix();
     }
 
     // Button 5 (R1 on PlayStation, RB on Xbox) - Zoom in
     if (gamepad.buttons[5]?.pressed) {
       renderState.camera.zoom *= 1.05; // Zoom in
-      renderState.camera.zoom = Math.min(Math.max(renderState.camera.zoom, 10), 50); // Clamp zoom
+      renderState.camera.zoom = Math.min(
+        Math.max(renderState.camera.zoom, 10),
+        50,
+      ); // Clamp zoom
       renderState.camera.updateProjectionMatrix();
     }
 
     // Button actions
     // Button 0 (A on Xbox, X on PlayStation) - Reveal cell
     if (
-      gamepad.buttons[0]?.pressed && !(gamepad.buttons[0] as any).previouslyPressed
+      gamepad.buttons[0]?.pressed &&
+      !(gamepad.buttons[0] as any).previouslyPressed
     ) {
       // We need the fadeOverlay from the main file
-      const fadeOverlay = document.getElementById('fadeOverlay') as HTMLDivElement;
+      const fadeOverlay = document.getElementById(
+        "fadeOverlay",
+      ) as HTMLDivElement;
       revealCell(gamepadState.gamepadCursorIndex, fadeOverlay, gamepadState);
       (gamepad.buttons[0] as any).previouslyPressed = true;
     } else if (!gamepad.buttons[0]?.pressed) {
@@ -162,7 +200,8 @@ export function pollGamepads() {
 
     // Button 1 (B on Xbox, Circle on PlayStation) - Toggle flag
     if (
-      gamepad.buttons[1]?.pressed && !(gamepad.buttons[1] as any).previouslyPressed
+      gamepad.buttons[1]?.pressed &&
+      !(gamepad.buttons[1] as any).previouslyPressed
     ) {
       toggleFlag(gamepadState.gamepadCursorIndex);
       (gamepad.buttons[1] as any).previouslyPressed = true;

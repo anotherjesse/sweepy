@@ -2,7 +2,17 @@ import * as THREE from 'three';
 import { W, H, N, gameState, revealCell, toggleFlag } from './game';
 import { renderState, updateHoverInfo, clearHoverInfo } from './render';
 import { gamepadState } from './gamepad';
-import type { MouseState } from './types';
+
+
+// Mouse state interface
+export type MouseState = {
+  isMouseDown: boolean;
+  initialPointerX: number;
+  initialPointerY: number;
+  initialCellIndex: number;
+  pointer: THREE.Vector2;
+  raycaster: THREE.Raycaster;
+}
 
 // Create mouse state object
 export const mouseState: MouseState = {

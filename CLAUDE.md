@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build Commands
 - `pnpm install` - Install dependencies
-- `pnpm dev` - Start development server
+- `pnpm typecheck` - Typecheck the code
 - `pnpm build` - Build for production
-- `pnpm preview` - Preview production build
+
 
 ## Code Style Guidelines
 - **TypeScript**: Use strict mode with proper type definitions

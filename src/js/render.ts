@@ -1,13 +1,28 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { BOARD_SIZE, W, H, N, states } from './game';
-import type { 
-  RenderState, 
-  GameState,
-  CellStateConstants,
-  SpriteConstants,
-  GamepadState
-} from './types';
+import type { GameState, CellStateConstants } from './game';
+import type { GamepadState } from './gamepad';
+
+// Extended OrbitControls type to add missing properties
+export type ExtendedOrbitControls = OrbitControls & {
+  isPanning?: boolean;
+};
+
+// Render state type
+export type RenderState = {
+  scene: THREE.Scene;
+  camera: THREE.OrthographicCamera;
+  renderer: THREE.WebGLRenderer;
+  controls: ExtendedOrbitControls;
+  cellMesh: THREE.InstancedMesh | null;
+};
+
+// Sprite constants 
+export type SpriteConstants = {
+  SPRITE_CELL_WIDTH: number;
+  SPRITE_CELL_HEIGHT: number;
+};
 
 // Sprite sheet constants - will be used in shader
 export const SPRITE_CELL_WIDTH = 0.25; // 1/4 (for 4x4 sprite atlas)

@@ -20,21 +20,16 @@ export type RenderState = {
   keyboardCursorMesh: THREE.Mesh | null;
 };
 
-// Sprite constants
-export type SpriteConstants = {
-  SPRITE_CELL_WIDTH: number;
-  SPRITE_CELL_HEIGHT: number;
-};
 
 // Sprite sheet constants - will be used in shader
-export const SPRITE_CELL_WIDTH = 0.25; // 1/4 (for 4x4 sprite atlas)
-export const SPRITE_CELL_HEIGHT = 1 / 3; // 1/4 (for 4x4 sprite atlas)
+const SPRITE_CELL_WIDTH = 1 / 4;
+const SPRITE_CELL_HEIGHT = 1 / 3; // 1/4 (for 4x4 sprite atlas)
 
 // Constants for zoom
-export const ZOOM_MIN = 10;
-export const ZOOM_MAX = 50;
-export const ZOOM_IN_FACTOR = 1.1; // Consistent zoom in factor
-export const ZOOM_OUT_FACTOR = 0.9; // Consistent zoom out factor
+const ZOOM_MIN = 10;
+const ZOOM_MAX = 50;
+const ZOOM_IN_FACTOR = 1.1;
+const ZOOM_OUT_FACTOR = 0.9;
 
 // Create render state object
 export const renderState: RenderState = {
@@ -97,29 +92,18 @@ export async function initRenderer() {
 
   // Try to load saved camera position from preferences
   const prefs = await loadPreferences();
+  console.log("prefs", prefs);
 
   // Default position (center of board looking down)
   const defaultPosition = { x: config.W / 2, y: 100, z: config.H / 2 };
-  const defaultTarget = { x: config.W / 2, y: 0, z: config.H / 2 };
 
-  // Position the camera directly above looking straight down (z-axis is height)
-  if (prefs?.cameraPosition) {
-    renderState.camera.position.set(
-      prefs.cameraPosition.x,
-      prefs.cameraPosition.y,
-      prefs.cameraPosition.z,
-    );
-  } else {
-    renderState.camera.position.set(
-      defaultPosition.x,
-      defaultPosition.y,
-      defaultPosition.z,
-    );
-  }
+  const camPos = prefs?.cameraPosition ?? defaultPosition;
 
-  renderState.camera.lookAt(defaultTarget.x, defaultTarget.y, defaultTarget.z);
+  renderState.camera.position.set(camPos.x, camPos.y, camPos.z);
+  renderState.camera.lookAt(camPos.x, 0, camPos.z);
   // Set zoom level from preferences or use default
-  renderState.camera.zoom = prefs?.zoom || 20; // Default zoom level if not found
+  renderState.camera.zoom = prefs?.zoom ?? 20; // Default zoom level if not found
+  console.log("renderState.camera.zoom", renderState.camera.zoom);
 
   // Apply zoom
   renderState.camera.updateProjectionMatrix();
@@ -139,25 +123,12 @@ export async function initRenderer() {
   renderState.controls.enableRotate = false;
   renderState.controls.screenSpacePanning = true;
 
-  // Set target from saved preferences or default
-  if (prefs?.targetPosition) {
-    renderState.controls.target.set(
-      prefs.targetPosition.x,
-      prefs.targetPosition.y,
-      prefs.targetPosition.z,
-    );
-  } else {
-    renderState.controls.target.set(
-      defaultTarget.x,
-      defaultTarget.y,
-      defaultTarget.z,
-    );
-  }
+  renderState.controls.target.set(defaultPosition.x, 0, defaultPosition.z);
 
   renderState.controls.mouseButtons = {
     LEFT: THREE.MOUSE.LEFT,
     MIDDLE: THREE.MOUSE.MIDDLE,
-    RIGHT: THREE.MOUSE.PAN, // Allow right click to pan
+    RIGHT: THREE.MOUSE.PAN,
   };
 }
 

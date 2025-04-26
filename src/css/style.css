@@ -67,7 +67,17 @@ button:hover {
   padding-top: 12px;
 }
 
+.instructions h3 {
+  margin: 12px 0 6px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.instructions h3:first-child {
+  margin-top: 0;
+}
+
 .instructions p {
-  margin: 6px 0;
+  margin: 4px 0;
   font-size: 14px;
 } 

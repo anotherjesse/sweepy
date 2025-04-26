@@ -4,7 +4,8 @@ import {
   initMeshes, 
   initUI, 
   animate, 
-  handleResize 
+  handleResize,
+  renderState
 } from './render';
 import { 
   gameState, 
@@ -25,15 +26,25 @@ import {
   onPointerUp, 
   onWheel 
 } from './mouse';
+import {
+  keyboardState,
+  onKeyDown,
+  onKeyUp,
+  processKeyboardInput
+} from './keyboard';
 
-// Make gamepadState available globally for use in the render loop
+// Make states available globally for use in the render loop
 declare global {
   interface Window {
     gamepadState: typeof gamepadState;
+    keyboardState: typeof keyboardState;
+    gameState: typeof gameState;
   }
 }
 
 window.gamepadState = gamepadState;
+window.keyboardState = keyboardState;
+window.gameState = gameState;
 
 // Initialize the application
 async function init() {
@@ -59,8 +70,11 @@ async function init() {
     generateBoard(seed);
   }
 
-  // Start animation loop
-  animate(pollGamepads);
+  // Start animation loop with both gamepad and keyboard polling
+  animate(() => {
+    pollGamepads();
+    processKeyboardInput();
+  });
 }
 
 // Setup event listeners
@@ -77,6 +91,20 @@ function initEventListeners() {
 
   // Mouse wheel for zoom
   window.addEventListener('wheel', onWheel);
+
+  // Keyboard events
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+  
+  // Debug key for keyboard cursor visibility
+  window.addEventListener('keydown', (event) => {
+    if (event.code === 'KeyK' && event.ctrlKey) {
+      if (window.keyboardState && renderState.keyboardCursorMesh) {
+        renderState.keyboardCursorMesh.visible = !renderState.keyboardCursorMesh.visible;
+        console.log(`Keyboard cursor ${renderState.keyboardCursorMesh.visible ? 'shown' : 'hidden'}`);
+      }
+    }
+  });
 
   // Window resize
   window.addEventListener('resize', handleResize);

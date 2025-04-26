@@ -1,6 +1,7 @@
 import seedrandom from "seedrandom";
 import SimplexNoise from "simplex-noise";
 import type { GamepadState } from "./gamepad";
+import type { KeyboardState } from "./keyboard";
 import { renderState, updateMeshes } from "./render";
 import { saveState, loadState } from "./persist";
 
@@ -128,6 +129,16 @@ function calculateAdjacentMines() {
     }
 }
 
+// We'll define a type for the function that resets keyboard cursor
+// to avoid circular dependencies
+type KeyboardResetFunction = (x: number, z: number) => void;
+let resetKeyboardCursorFn: KeyboardResetFunction | null = null;
+
+// Function to register the keyboard reset function
+export function registerKeyboardReset(resetFn: KeyboardResetFunction) {
+    resetKeyboardCursorFn = resetFn;
+}
+
 // Reveal a cell
 export function revealCell(
     index: number,
@@ -185,17 +196,23 @@ export function revealCell(
             const viewRange = 100; // A more reasonable view range
             const randomX = Math.floor(Math.random() * (W - viewRange));
             const randomZ = Math.floor(Math.random() * (H - viewRange));
+            const newCenterX = randomX + viewRange / 2;
+            const newCenterZ = randomZ + viewRange / 2;
+
+            // Ensure we have integer coordinates for the cursors
+            const newCenterXInt = Math.floor(newCenterX);
+            const newCenterZInt = Math.floor(newCenterZ);
 
             // Move both camera position and target coherently
             renderState.camera.position.set(
-                randomX + viewRange / 2,
+                newCenterX,
                 renderState.camera.position.y,
-                randomZ + viewRange / 2,
+                newCenterZ
             );
             renderState.controls.target.set(
-                randomX + viewRange / 2,
+                newCenterX,
                 0,
-                randomZ + viewRange / 2,
+                newCenterZ
             );
             renderState.camera.zoom = 20; // Set a higher default zoom level
 
@@ -204,10 +221,19 @@ export function revealCell(
             renderState.controls.update();
 
             // Move gamepad cursor to new position
-            gamepadState.gamepadCursorX = randomX + viewRange / 2;
-            gamepadState.gamepadCursorZ = randomZ + viewRange / 2;
-            gamepadState.gamepadCursorIndex = gamepadState.gamepadCursorX +
-                gamepadState.gamepadCursorZ * W;
+            gamepadState.gamepadCursorX = newCenterXInt;
+            gamepadState.gamepadCursorZ = newCenterZInt;
+            gamepadState.gamepadCursorIndex = newCenterXInt + newCenterZInt * W;
+
+            // Set the hovered cell index to match the new position
+            gameState.hoveredCellIndex = newCenterXInt + newCenterZInt * W;
+
+            // Move keyboard cursor to new position if the reset function is registered
+            if (resetKeyboardCursorFn) {
+                resetKeyboardCursorFn(newCenterXInt, newCenterZInt);
+            }
+            
+            console.log(`Reset positions - Camera: (${newCenterX}, ${newCenterZ}), Cursor: (${newCenterXInt}, ${newCenterZInt})`);
 
             if (fadeOverlay) fadeOverlay.style.opacity = "0";
 

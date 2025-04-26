@@ -21,29 +21,74 @@ const MINE = 0x40;       // 01000000
 const states = new Uint8Array(N);
 
 function createDigitAtlas() {
+  // Create a 256×256 texture atlas as specified in README
   const canvas = document.createElement('canvas');
-  canvas.width = 24;  // 3 × 8
-  canvas.height = 24; // 3 × 8
+  canvas.width = 256;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d');
 
+  // Fill with black background
   ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, 24, 24);
-  ctx.font = '8px monospace';
+  ctx.fillRect(0, 0, 256, 256);
+  
+  const tileSize = 16; // 16×16 tiles in a 256×256 atlas
+  
+  // Row 0: hidden, flag, mine, error
+  // Hidden cell
+  ctx.fillStyle = '#777';
+  ctx.beginPath();
+  ctx.roundRect(0, 0, tileSize, tileSize, 2);
+  ctx.fill();
+  
+  // Flag
+  ctx.fillStyle = '#00f';
+  ctx.beginPath();
+  ctx.moveTo(tileSize + 4, 2);
+  ctx.lineTo(tileSize + 12, 6);
+  ctx.lineTo(tileSize + 4, 10);
+  ctx.fill();
+  ctx.fillRect(tileSize + 4, 2, 2, 12);
+  
+  // Mine
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.arc(tileSize * 2 + 8, 8, 6, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Error (placeholder)
+  ctx.fillStyle = '#f00';
+  ctx.fillRect(tileSize * 3, 0, tileSize, tileSize);
+  
+  // Row 1: Numbers 0-8
+  ctx.font = '12px monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#fff';
-
-  let n = 0;
-  for (let row = 0; row < 3; row++) {
-    for (let col = 0; col < 3; col++, n++) {
-      ctx.fillText(n.toString(), col * 8 + 4, row * 8 + 4);
-    }
+  
+  for (let i = 0; i <= 8; i++) {
+    const x = i * tileSize;
+    const y = tileSize;
+    
+    // Background
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(x, y, tileSize, tileSize);
+    
+    // Number
+    ctx.fillStyle = palette[i].getStyle();
+    ctx.fillText(i.toString(), x + tileSize/2, y + tileSize/2);
   }
+  
+  // Row 2: hover, explode (placeholders)
+  ctx.fillStyle = '#aaa';
+  ctx.fillRect(0, tileSize * 2, tileSize, tileSize);
+  ctx.fillStyle = '#faa';
+  ctx.fillRect(tileSize, tileSize * 2, tileSize, tileSize);
+  
   const texture = new THREE.CanvasTexture(canvas);
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.NearestFilter;
   return texture;
 }
+
 // Simple color palette for values 0–8
 const palette = [
   new THREE.Color(0.9, 0.9, 0.9), // 0 - Empty
@@ -66,21 +111,18 @@ const FLAG_COLOR = new THREE.Color(1.0, 0.0, 0.0);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x333333);
 
-// Use OrthographicCamera for a true 2D map feel
-const frustumSize = 30; // Reduced frustum size for better initial zoom
-const aspect = window.innerWidth / window.innerHeight;
+// Use OrthographicCamera for a true 2D map feel as specified in README
 const camera = new THREE.OrthographicCamera(
-  frustumSize * aspect / -2,
-  frustumSize * aspect / 2,
-  frustumSize / 2,
-  frustumSize / -2,
+  -window.innerWidth / 2, 
+  window.innerWidth / 2, 
+  window.innerHeight / 2, 
+  -window.innerHeight / 2, 
   0.1,
   10000
 );
-// Position the camera directly above looking straight down
-camera.position.set(W / 2, 10, H / 2);
-camera.up.set(0, 0, -1); // Set up vector to ensure proper orientation
-camera.lookAt(W / 2, 0, H / 2);
+// Position the camera directly above looking straight down (z-axis is height)
+camera.position.set(W / 2, 100, H / 2); // Center above the board
+camera.lookAt(W / 2, 0, H / 2); // Look at center of board
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -93,11 +135,11 @@ document.body.appendChild(renderer.domElement);
 
 // Window resize handler - ensure this is separately defined so it can be reused
 function handleResize() {
-  const aspect = window.innerWidth / window.innerHeight;
-  camera.left = frustumSize * aspect / -2;
-  camera.right = frustumSize * aspect / 2;
-  camera.top = frustumSize / 2;
-  camera.bottom = frustumSize / -2;
+  const h = window.innerHeight, w = window.innerWidth;
+  camera.left = -w/2;
+  camera.right = w/2;
+  camera.top = h/2;
+  camera.bottom = -h/2;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
@@ -110,10 +152,10 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 controls.enableZoom = true;
-controls.minPolarAngle = Math.PI / 2;
-controls.maxPolarAngle = Math.PI / 2;
+controls.enableRotate = true; // Disable rotation again to keep top-down view
 controls.screenSpacePanning = true;
-controls.enableRotate = false;
+controls.enableKeys = false;
+controls.target.set(W / 2, 0, H / 2); // Set target to center of board
 controls.mouseButtons = {
   LEFT: THREE.MOUSE.LEFT,
   MIDDLE: THREE.MOUSE.MIDDLE,
@@ -143,7 +185,8 @@ function initMeshes() {
 
   // Create a checkerboard background (optional)
   const boardGeo = new THREE.PlaneGeometry(W, H);
-  boardGeo.rotateX(-Math.PI / 2); // Rotate the board to be horizontal
+  // Make sure board is flat on XZ plane
+  boardGeo.rotateX(-Math.PI / 2);
   window.boardGeo = boardGeo;
   const boardMat = new THREE.MeshBasicMaterial({
     color: 0x444444,
@@ -154,102 +197,63 @@ function initMeshes() {
 
   // Create a plane geometry for cells - ensure they're square
   const cellGeo = new THREE.PlaneGeometry(0.9, 0.9);
-  cellGeo.rotateX(-Math.PI / 2); // Rotate to be horizontal (XZ plane)
+  // Make sure cells are flat on XZ plane
+  cellGeo.rotateX(-Math.PI / 2);
 
-  // Create colored attribute for initial state
-  const initialColors = new Float32Array(N * 3);
+  // Create the texture atlas
+  const digitTexture = createDigitAtlas();
+
+  // Create custom attributes for the instanced mesh
+  const offsets = new Float32Array(N * 2); // x, z offsets
+  const uvs = new Float32Array(N * 2);     // texture atlas offsets
+
+  // Initialize all cells as hidden (0,0 in atlas)
   for (let i = 0; i < N; i++) {
-    initialColors[i * 3] = UNREVEALED_COLOR.r;
-    initialColors[i * 3 + 1] = UNREVEALED_COLOR.g;
-    initialColors[i * 3 + 2] = UNREVEALED_COLOR.b;
+    const x = i % W, z = Math.floor(i / W);
+    offsets[i * 2] = x;
+    offsets[i * 2 + 1] = z;
+    uvs[i * 2] = 0;     // Hidden tile (default)
+    uvs[i * 2 + 1] = 0; // Top row of atlas
   }
 
-  // Add colors attribute to geometry
-  // cellGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(3 * 4), 3));
-  cellGeo.setAttribute(
-    'color',
-    new THREE.Float32BufferAttribute([
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1   // 4 vertices × RGB
-    ], 3)
-  );
+  // Add attributes to geometry
+  cellGeo.setAttribute('aOffset', new THREE.InstancedBufferAttribute(offsets, 2));
+  cellGeo.setAttribute('aUV', new THREE.InstancedBufferAttribute(uvs, 2));
 
-  const cellMat = new THREE.MeshBasicMaterial({
-    vertexColors: true,
+  // Create shader material as specified in README
+  const cellMat = new THREE.ShaderMaterial({
+    uniforms: {
+      atlas: { value: digitTexture }
+    },
+    vertexShader: `
+      attribute vec2 aOffset;
+      attribute vec2 aUV;
+      varying vec2 vUv;
+      void main() {
+        // Use the built-in uv attribute from THREE.PlaneGeometry
+        vUv = aUV + uv / 16.0; // 16x16 tiles in atlas
+        vec3 pos = position;
+        // Position cells in XZ plane
+        pos.x += aOffset.x;
+        pos.z += aOffset.y;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D atlas;
+      varying vec2 vUv;
+      void main() {
+        gl_FragColor = texture2D(atlas, vUv);
+      }
+    `,
     side: THREE.DoubleSide
   });
 
   // Create instanced mesh for cells
   cellMesh = new THREE.InstancedMesh(cellGeo, cellMat, N);
-  cellMesh.instanceColor = new THREE.InstancedBufferAttribute(initialColors, 3);
   cellMesh.frustumCulled = true; // Only render visible cells
 
-  // In initMeshes, after creating cellMesh
-  const glyphAttr = new Uint8Array(N); // 0-8 from NUMBER bits
-  cellMesh.geometry.setAttribute(
-    'glyph',
-    new THREE.InstancedBufferAttribute(glyphAttr, 1)
-  );
-
-  const digitTexture = createDigitAtlas();
-
-  const mat = new THREE.RawShaderMaterial({
-    uniforms: {
-      map: { value: digitTexture },
-      revealed: { value: 0 },    // toggled per-frame
-    },
-    vertexShader: `
-    precision highp float;
-    attribute vec3 position;
-    attribute vec3 instanceColor;
-    attribute float glyph;
-    attribute mat4 instanceMatrix;
-    attribute vec2 uv;
-    uniform mat4 projectionMatrix;
-    uniform mat4 modelViewMatrix;
-    varying vec3 vColor;
-    varying vec2 vUv;
-    void main() {
-      vColor = instanceColor;
-      // tile selection
-      float g = glyph;          // 0-8
-      float col = mod(g, 3.0);
-      float row = floor(g / 3.0);
-      vec2 base = vec2(col, row) / 3.0;
-      // incoming built-in uv (0-1) from PlaneGeometry
-      vUv = base + uv / 3.0;
-      gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position,1.0);
-    }
-  `,
-    fragmentShader: `
-    precision highp float;
-    uniform sampler2D map;
-    uniform float revealed;   // 0 or 1
-    varying vec3 vColor;
-    varying vec2 vUv;
-    void main() {
-      vec4 digit = texture2D(map, vUv);
-      // revealed==0  → just show flat vColor
-      // revealed==1  → multiply digit (white digits on black atlas) with vColor
-      vec3 finalColor = mix(vColor,
-                            vColor * digit.r,   // digit.r = digit.g = digit.b
-                            revealed);
-      gl_FragColor = vec4(finalColor, 1.0);
-    }
-  `,
-  });
-
-  cellMesh.material = mat;
-
-
-  // Create a simple triangle geometry for flags
-  const flagGeo = new THREE.ConeGeometry(0.3, 0.6, 3);
-  flagGeo.rotateX(Math.PI); // Ensure flag orientation is correct
-  const flagMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-  flagMesh = new THREE.InstancedMesh(flagGeo, flagMat, N);
-  flagMesh.frustumCulled = true;
-  flagMesh.count = 0; // Start with no flags visible
-
-  // Set initial transforms for cells
+  // Update instance matrices
   const dummy = new THREE.Object3D();
   for (let i = 0; i < N; i++) {
     const x = i % W, z = Math.floor(i / W);
@@ -258,6 +262,14 @@ function initMeshes() {
     cellMesh.setMatrixAt(i, dummy.matrix);
   }
   cellMesh.instanceMatrix.needsUpdate = true;
+
+  // Simple flag mesh for now (can be replaced with sprite later)
+  const flagGeo = new THREE.ConeGeometry(0.3, 0.6, 3);
+  flagGeo.rotateX(Math.PI);
+  const flagMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  flagMesh = new THREE.InstancedMesh(flagGeo, flagMat, N);
+  flagMesh.frustumCulled = true;
+  flagMesh.count = 0; // Start with no flags visible
 
   scene.add(cellMesh);
   scene.add(flagMesh);
@@ -272,33 +284,40 @@ function updateMeshes() {
   }
 
   const dummy = new THREE.Object3D();
-  const colorArr = new Float32Array(N * 3);
-  let flagCount = 0;
+  let flagCount = 0, uvArray = cellMesh.geometry.getAttribute('aUV').array;
 
   for (let i = 0; i < N; i++) {
     const x = i % W, z = Math.floor(i / W);
     const state = states[i];
 
-    // Set color based on cell state
-    let color;
+    // Update UV coordinates based on cell state
     if ((state & REVEALED) || debugMode) {
       if (state & MINE) {
-        color = MINE_COLOR;
+        // Mine tile at position (2,0) in the atlas
+        uvArray[i * 2] = 2;
+        uvArray[i * 2 + 1] = 0;
       } else {
-        const adjacentMines = (state & NUMBER_MASK) ;
-        color = palette[adjacentMines];
+        // Number tiles (0-8) at row 1
+        const adjacentMines = (state & NUMBER_MASK);
+        uvArray[i * 2] = adjacentMines;
+        uvArray[i * 2 + 1] = 1;
       }
     } else {
-      color = UNREVEALED_COLOR;
+      // Unrevealed tile (hidden) at position (0,0)
+      uvArray[i * 2] = 0;
+      uvArray[i * 2 + 1] = 0;
     }
-
-    colorArr[3 * i] = color.r;
-    colorArr[3 * i + 1] = color.g;
-    colorArr[3 * i + 2] = color.b;
 
     // Handle flags
     if (state & FLAGGED) {
-      dummy.position.set(x, 0.5, z); // Raised position for flags to be visible
+      // Flag position in atlas (1,0)
+      if (!((state & REVEALED) || debugMode)) {
+        uvArray[i * 2] = 1;
+        uvArray[i * 2 + 1] = 0;
+      }
+      
+      // Add physical flag for 3D effect (optional)
+      dummy.position.set(x, 0.5, z);
       dummy.rotation.set(0, 0, 0);
       dummy.updateMatrix();
       flagMesh.setMatrixAt(flagCount, dummy.matrix);
@@ -306,21 +325,11 @@ function updateMeshes() {
     }
   }
 
-  // Update cell colors
-  if (cellMesh.instanceColor) {
-    // If we already have an instanceColor buffer, just update it
-    cellMesh.instanceColor.set(colorArr);
-    cellMesh.instanceColor.needsUpdate = true;
-  } else {
-    // Otherwise create a new one
-    cellMesh.instanceColor = new THREE.InstancedBufferAttribute(colorArr.slice(), 3);
-  }
+  // Update UV attribute
+  cellMesh.geometry.getAttribute('aUV').needsUpdate = true;
 
   // Update visible flag count
   flagMesh.count = flagCount;
-
-  // Update the instance matrices
-  cellMesh.instanceMatrix.needsUpdate = true;
   flagMesh.instanceMatrix.needsUpdate = true;
 
   console.log("Meshes updated successfully");
@@ -584,16 +593,14 @@ function onWheel(event) {
   // Prevent default scrolling behavior
   event.preventDefault();
 
-  // Zoom in/out with scroll wheel
+  // Zoom in/out with scroll wheel as specified in README
   const delta = event.deltaY;
-
-  // Adjust orthographic camera zoom with more sensitivity for better control
-  const zoomSpeed = 0.05; // Reduced for smoother zooming
-  const zoomFactor = 1 + (delta > 0 ? zoomSpeed : -zoomSpeed);
-  camera.zoom /= zoomFactor;
-
-  // Clamp zoom to reasonable values
-  camera.zoom = Math.min(Math.max(camera.zoom, 0.01), 10);
+  
+  // Apply zoom factor: multiply camera.zoom by 0.9 or 1.1
+  camera.zoom *= (delta > 0) ? 0.9 : 1.1;
+  
+  // Clamp zoom between 0.5 and 20 as specified in README
+  camera.zoom = Math.min(Math.max(camera.zoom, 0.5), 20);
 
   camera.updateProjectionMatrix();
 }

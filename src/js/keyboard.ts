@@ -212,11 +212,5 @@ export function resetKeyboardCursor(x: number, z: number) {
   console.log(`Keyboard cursor reset to ${x}, ${z}`);
 }
 
-// Process keyboard input in the game loop - no longer used for movement but kept for interface compatibility
-export function processKeyboardInput() {
-  // This function is now empty as we process movement on initial keydown
-  // We keep it for API compatibility with the existing code
-}
-
 // Register the keyboard cursor reset function
 registerKeyboardReset(resetKeyboardCursor);

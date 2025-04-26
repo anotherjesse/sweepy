@@ -24,7 +24,6 @@ import {
   keyboardState,
   onKeyDown,
   onKeyUp,
-  processKeyboardInput,
 } from "./keyboard";
 
 // Make states available globally for use in the render loop
@@ -55,16 +54,11 @@ async function init() {
   initUI();
 
   // Try to load saved game or generate a new board if no saved game exists
-  const loadedGame = await loadGameData();
-  if (!loadedGame) {
-    const seed = generateRandomSeed();
-    generateBoard(seed);
-  }
+  await loadGameData() || generateBoard(generateRandomSeed());
 
   // Start animation loop with both gamepad and keyboard polling
   animate(() => {
     pollGamepads();
-    processKeyboardInput();
   });
 }
 

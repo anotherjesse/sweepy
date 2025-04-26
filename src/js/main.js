@@ -151,6 +151,7 @@ function initMeshes() {
   // Create a plane geometry for cells - ensure they're square
   const cellGeo = new THREE.PlaneGeometry(1, 1);
   // Make sure cells are flat on XZ plane
+  cellGeo.translate( 0.5, -0.5, 0 );
   cellGeo.rotateX(-Math.PI / 2);
 
   // Load the sprite texture
@@ -436,7 +437,7 @@ function revealCell(index) {
       controls.update();
 
       if (fadeOverlay) fadeOverlay.style.opacity = '0';
- 
+
       // Re-enable player
       disablePlayer = false;
       favicon = document.querySelector('link[rel="icon"]');
@@ -601,30 +602,14 @@ function onPointerDown(event) {
   // Raycast to find intersected cell
   raycaster.setFromCamera(pointer, camera);
   const intersects = raycaster.intersectObject(cellMesh);
+  if (intersects.length === 0) return;
 
-  if (intersects.length > 0) {
-    // Get the point of intersection in world coordinates
-    const point = intersects[0].point;
+  const hit = intersects[0];
+  const i = hit.instanceId; // ← this is the cell index 0…N-1
+  if (i === undefined) return;
 
-    // Convert world coordinates to cell indices
-    const x = Math.floor(point.x);
-    const z = Math.floor(point.z);
-
-    // Calculate the cell index from x,z coordinates
-    const instanceId = x + z * W;
-
-    // Ensure cell index is valid
-    if (instanceId >= 0 && instanceId < N) {
-      // Left click = reveal, Right click = flag
-      if (event.button === 0) {
-        // Left click
-        revealCell(instanceId);
-      } else if (event.button === 2) {
-        // Right click
-        toggleFlag(instanceId);
-      }
-    }
-  }
+  if (event.button === 0) revealCell(i);
+  else if (event.button === 2) toggleFlag(i);
 }
 
 // Detect when panning starts/ends

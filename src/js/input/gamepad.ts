@@ -1,7 +1,7 @@
 import * as config from "../config";
 import { revealCell, toggleFlag } from "../game";
-import { renderState, zoomIn, zoomOut } from "../gfx/render";
-
+import { renderState } from "../gfx/render";
+import { zoomIn, zoomOut } from "../gfx/camera";
 // Extend GamepadButton interface
 export type GamepadButton = {
   pressed: boolean;

@@ -5,18 +5,14 @@ import { gamepadState } from "../input/gamepad";
 import { keyboardState } from "../input/keyboard";
 import { loadPreferences, updatePreferences } from "../persist";
 import * as config from "../config";
-
-// Extended OrbitControls type to add missing properties
-export type ExtendedOrbitControls = OrbitControls & {
-    isPanning?: boolean;
-};
+import { camera, initCamera, saveCameraState } from "./camera";
 
 // Render state type
 export type RenderState = {
     scene: THREE.Scene;
     camera: THREE.OrthographicCamera;
     renderer: THREE.WebGLRenderer;
-    controls: ExtendedOrbitControls;
+    controls: OrbitControls;
     cellMesh: THREE.InstancedMesh | null;
     keyboardCursorMesh: THREE.Mesh | null;
 };
@@ -25,111 +21,24 @@ export type RenderState = {
 const SPRITE_CELL_WIDTH = 1 / 4;
 const SPRITE_CELL_HEIGHT = 1 / 3; // 1/4 (for 4x4 sprite atlas)
 
-// Constants for zoom
-const ZOOM_MIN = 10;
-const ZOOM_MAX = 50;
-const ZOOM_IN_FACTOR = 1.1;
-const ZOOM_OUT_FACTOR = 0.9;
 
 // Create render state object
 export const renderState: RenderState = {
     scene: new THREE.Scene(),
-    camera: new THREE.OrthographicCamera(
-        -window.innerWidth / 2,
-        window.innerWidth / 2,
-        window.innerHeight / 2,
-        -window.innerHeight / 2,
-        0.1,
-        10000,
-    ),
+    camera,
     renderer: new THREE.WebGLRenderer({ antialias: false }),
     controls: null!,
     cellMesh: null,
     keyboardCursorMesh: null,
 };
 
-// Zoom control functions
-export function zoomIn(factor = ZOOM_IN_FACTOR) {
-    renderState.camera.zoom *= factor;
-    applyZoomConstraints();
-}
-
-export function zoomOut(factor = ZOOM_OUT_FACTOR) {
-    renderState.camera.zoom *= factor;
-    applyZoomConstraints();
-    saveCameraState();
-}
-
-export function setZoom(level: number) {
-    renderState.camera.zoom = level;
-    applyZoomConstraints();
-    saveCameraState();
-}
-
-function applyZoomConstraints() {
-    renderState.camera.zoom = Math.min(
-        Math.max(renderState.camera.zoom, ZOOM_MIN),
-        ZOOM_MAX,
-    );
-    renderState.camera.updateProjectionMatrix();
-}
-
-// Save camera state to preferences
-export async function saveCameraState() {
-    await updatePreferences({
-        cameraPosition: {
-            x: renderState.camera.position.x,
-            y: renderState.camera.position.y,
-            z: renderState.camera.position.z,
-        },
-        zoom: renderState.camera.zoom,
-    });
-}
-
 // Initialize the renderer
 export async function initRenderer() {
     renderState.scene.background = new THREE.Color(0x333333);
-
-    // Try to load saved camera position from preferences
-    const prefs = await loadPreferences();
-    console.log("prefs", prefs);
-
-    // Default position (center of board looking down)
-    const defaultPosition = { x: config.W / 2, y: 100, z: config.H / 2 };
-
-    const camPos = defaultPosition; // prefs?.cameraPosition ??
-
-    renderState.camera.position.set(camPos.x, camPos.y, camPos.z);
-    renderState.camera.lookAt(camPos.x, 0, camPos.z);
-    // Set zoom level from preferences or use default
-    renderState.camera.zoom = prefs?.zoom ?? 20; // Default zoom level if not found
-    console.log("renderState.camera.zoom", renderState.camera.zoom);
-
-    // Apply zoom
-    renderState.camera.updateProjectionMatrix();
-
     renderState.renderer.setPixelRatio(2);
     renderState.renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderState.renderer.domElement);
-
-    // Create OrbitControls
-    renderState.controls = new OrbitControls(
-        renderState.camera,
-        renderState.renderer.domElement,
-    );
-    renderState.controls.enableDamping = true;
-    renderState.controls.dampingFactor = 0.05;
-    renderState.controls.enableZoom = true;
-    renderState.controls.enableRotate = false;
-    renderState.controls.screenSpacePanning = true;
-
-    renderState.controls.target.set(defaultPosition.x, 0, defaultPosition.z);
-
-    renderState.controls.mouseButtons = {
-        LEFT: THREE.MOUSE.LEFT,
-        MIDDLE: THREE.MOUSE.MIDDLE,
-        RIGHT: THREE.MOUSE.PAN,
-    };
+    await initCamera();
 }
 
 // Load sprite atlas
@@ -398,16 +307,7 @@ export function animate(inputPollFunction: () => void) {
     requestAnimationFrame(() => animate(inputPollFunction));
     renderState.controls.update();
     inputPollFunction();
-
-    // Save camera position periodically if changed
-    const now = Date.now();
-    if (
-        now - lastCameraSave > CAMERA_SAVE_INTERVAL &&
-        renderState.controls.hasOwnProperty("changed")
-    ) {
-        saveCameraState();
-        lastCameraSave = now;
-    }
+    saveCameraState();
 
     // Add pulsing animation to gamepad cursor
     const { gamepadCursorMesh } = gamepadState;

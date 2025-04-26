@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import * as config from '../config';
 import {  gameState, revealCell, toggleFlag } from '../game';
-import { renderState,  zoomIn, zoomOut } from '../gfx/render';
+import {  zoomIn, zoomOut, camera } from '../gfx/camera';
 import { updateHoverInfo, clearHoverInfo } from '../gfx/ui';
-
+import { renderState } from '../gfx/render';
 
 // Mouse state interface
 export type MouseState = {
@@ -35,12 +35,13 @@ if (mouseState.raycaster.params.Line) {
 
 // Pixel threshold to consider a mouse move as a drag
 const DRAG_THRESHOLD = 5;
+let isPanning = false;
 
 // Handler for mouse move events
 export function onPointerMove(event: MouseEvent) {
   // If right mouse button is down, we're panning
   if (event.buttons === 2) {
-    renderState.controls.isPanning = true;
+    isPanning = true;
   }
 
   // Calculate normalized device coordinates
@@ -50,7 +51,7 @@ export function onPointerMove(event: MouseEvent) {
   // If in debug mode, update hovered cell info
   if (gameState.debugMode) {
     // Raycast to find intersected cell
-    mouseState.raycaster.setFromCamera(mouseState.pointer, renderState.camera);
+    mouseState.raycaster.setFromCamera(mouseState.pointer, camera);
     const intersects = mouseState.raycaster.intersectObject(renderState.cellMesh!);
 
     if (intersects.length > 0) {
@@ -90,7 +91,7 @@ export function onPointerDown(event: MouseEvent) {
   mouseState.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
   // Only continue if not already panning
-  if (renderState.controls.isPanning) return;
+  if (isPanning) return;
 
   // Raycast to find intersected cell and store it
   mouseState.raycaster.setFromCamera(mouseState.pointer, renderState.camera);
@@ -107,7 +108,7 @@ export function onPointerDown(event: MouseEvent) {
 
 // Handler for mouse up events
 export function onPointerUp(event: MouseEvent) {
-  renderState.controls.isPanning = false;
+  isPanning = false;
 
   // Only handle cell actions if the mouse was down
   if (!mouseState.isMouseDown) return;

@@ -1,7 +1,6 @@
 export const BOARD_SIZE = 1000;
 export const W = BOARD_SIZE, H = BOARD_SIZE, N = W * H;
 
-
 export type CellStateConstants = {
     NUMBER_MASK: number;
     REVEALED: number;
@@ -17,3 +16,9 @@ export const cellStateConstants: CellStateConstants = {
     MINE: 0x40, // 01000000
     FINISHED: 0x80, // 10000000 (for completely boxed-in mines)
 };
+
+// Constants for zoom
+export const ZOOM_MIN = 10;
+export const ZOOM_MAX = 50;
+export const ZOOM_IN_FACTOR = 1.1;
+export const ZOOM_OUT_FACTOR = 0.9;

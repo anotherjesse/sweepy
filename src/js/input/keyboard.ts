@@ -6,7 +6,8 @@ import {
   startTeleport,
   toggleFlag,
 } from "../game";
-import { renderState, zoomIn, zoomOut } from "../gfx/render";
+import { renderState } from "../gfx/render";
+import { zoomIn, zoomOut } from "../gfx/camera";
 import { updatePreferences } from "../persist";
 
 // Keyboard state interface

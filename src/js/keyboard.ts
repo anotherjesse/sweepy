@@ -49,6 +49,13 @@ export function onKeyDown(event: KeyboardEvent) {
       return;
     }
   }
+  
+  // Handle dark mode toggle with 'm' key
+  if (event.code === "KeyM" || event.key === "m") {
+    document.body.classList.toggle("dark-mode");
+    console.log(`Dark mode ${document.body.classList.contains("dark-mode") ? "enabled" : "disabled"}`);
+    return;
+  }
 
   // Skip if player is disabled
   if (gameState.disablePlayer) return;

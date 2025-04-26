@@ -114,5 +114,25 @@ function initEventListeners() {
   window.addEventListener('gamepaddisconnected', disconnectGamepad);
 }
 
+// Check system preference for dark mode
+function setupColorScheme() {
+  const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (prefersDarkMode) {
+    document.body.classList.add('dark-mode');
+  }
+
+  // Listen for system changes to color scheme
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+    if (event.matches) {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+  });
+}
+
 // Start the application when DOM is ready
-window.addEventListener('DOMContentLoaded', init); 
+window.addEventListener('DOMContentLoaded', () => {
+  setupColorScheme();
+  init();
+}); 

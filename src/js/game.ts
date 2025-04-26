@@ -2,7 +2,7 @@ import seedrandom from "seedrandom";
 import SimplexNoise from "simplex-noise";
 import { type GamepadState, gamepadState } from "./gamepad";
 import { renderState, updateMeshes } from "./render";
-import { loadState, saveState } from "./persist";
+import { loadState, saveState, updatePreferences } from "./persist";
 import { fade, unfade } from "./ui";
 import * as config from "./config";
 
@@ -28,11 +28,11 @@ export const gameState: GameState = {
 };
 
 export function generateBoard(
-    seed: string,
+    seed: string | null = null,
     minePercentage = 0.3,
 ) {
     console.log(`Generating board with seed: ${seed}`);
-    const rng = seedrandom(seed);
+    const rng = seedrandom(seed ?? generateRandomSeed());
     const simplex = new SimplexNoise(rng);
 
     // Clear existing state
@@ -317,41 +317,26 @@ export function toggleFlag(index: number) {
         gameState.gameStarted = true;
     }
 
-    // Skip if already revealed
     if (states[index] & REVEALED) return;
 
-    // Toggle flag
     states[index] ^= FLAGGED;
-
-    // Update display
     updateMeshes(gameState);
-
-    // Check for any boxed-in mines that may need updating
     checkForBoxedInMines();
-
-    // Save the updated state
     saveState(states);
 }
 
-// Generate a random seed for the game
-export function generateRandomSeed(): string {
+function generateRandomSeed(): string {
     const seed = Math.floor(Math.random() * 1000000000).toString();
     gameState.currentSeed = seed;
     return seed;
 }
 
 // Save game data to IndexedDB
-export function saveGameData(seed: string) {
-    gameState.currentSeed = seed;
+export function saveGameData(seed: string | null = null) {
+    gameState.currentSeed = seed ?? generateRandomSeed();
     saveState(states);
 
-    // Also store the seed separately in localStorage as a fallback
-    localStorage.setItem("gameSeed", seed);
-
-    // Import dynamically to avoid circular dependency
-    import("./persist").then(({ updatePreferences }) => {
-        updatePreferences({ seed });
-    });
+    updatePreferences({ seed: gameState.currentSeed });
 }
 
 // Load game data from IndexedDB
@@ -370,12 +355,6 @@ export async function loadGameData(): Promise<boolean> {
 
         // Try to get seed from preferences first, then fallback to localStorage
         let savedSeed = prefs?.seed;
-        if (!savedSeed) {
-            const localStorageSeed = localStorage.getItem("gameSeed");
-            if (localStorageSeed) {
-                savedSeed = localStorageSeed;
-            }
-        }
 
         if (savedSeed) {
             gameState.currentSeed = savedSeed;

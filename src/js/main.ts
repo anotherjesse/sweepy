@@ -10,7 +10,6 @@ import { fade, initUI, setupFadeOverlay, unfade } from "./ui";
 import {
   gameState,
   generateBoard,
-  generateRandomSeed,
   loadGameData,
 } from "./game";
 import {
@@ -54,7 +53,7 @@ async function init() {
   initUI();
 
   // Try to load saved game or generate a new board if no saved game exists
-  await loadGameData() || generateBoard(generateRandomSeed());
+  await loadGameData() || generateBoard();
 
   // Start animation loop with both gamepad and keyboard polling
   animate(() => {

@@ -8,6 +8,7 @@ import {
 } from "./game";
 import { renderState, zoomIn, zoomOut } from "./render";
 import { gamepadState } from "./gamepad";
+import { updatePreferences } from "./persist";
 
 // Keyboard state interface
 export type KeyboardState = {
@@ -54,13 +55,8 @@ export function onKeyDown(event: KeyboardEvent) {
     const isDarkMode = document.body.classList.toggle("dark-mode");
     console.log(`Dark mode ${isDarkMode ? "enabled" : "disabled"}`);
 
-    // Import dynamically to avoid circular dependency
-    import("./persist").then(({ loadPreferences, updatePreferences }) => {
-      loadPreferences().then((prefs) => {
-        updatePreferences({
-          darkMode: isDarkMode,
-        });
-      });
+    updatePreferences({
+      darkMode: isDarkMode,
     });
 
     return;

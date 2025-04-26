@@ -1,4 +1,4 @@
-import { gameState, generateBoard, generateRandomSeed, states } from "./game";
+import { gameState, generateBoard, states } from "./game";
 import { updateMeshes } from "./render";
 import * as config from "./config";
 
@@ -35,7 +35,7 @@ export function initUI() {
     if (generateButton) {
         generateButton.addEventListener("click", () => {
             gameState.gameStarted = false;
-            generateBoard(generateRandomSeed());
+            generateBoard();
         });
     }
 

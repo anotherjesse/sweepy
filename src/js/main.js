@@ -9,7 +9,7 @@ const BOARD_SIZE = 1000;
 const W = BOARD_SIZE, H = BOARD_SIZE, N = W * H;
 
 // Debug mode flag
-let debugMode = true;
+let debugMode = false;
 // Track currently hovered cell
 let hoveredCellIndex = -1;
 
@@ -22,11 +22,11 @@ const MINE = 0x40;       // 01000000
 // Use Uint8Array for memory efficiency (1 byte per cell) as specified in README
 const states = new Uint8Array(N);
 
-// Sprite info - 128x96 with 4x3 grid
+// Sprite info - 128x128 with 4x4 grid
 const SPRITE_COLS = 4;
-const SPRITE_ROWS = 3;
-const SPRITE_CELL_WIDTH = 1/SPRITE_COLS;  // 0.25
-const SPRITE_CELL_HEIGHT = 1/SPRITE_ROWS; // 0.333...
+const SPRITE_ROWS = 4;
+const SPRITE_CELL_WIDTH = 1 / SPRITE_COLS;  // 0.25
+const SPRITE_CELL_HEIGHT = 1 / SPRITE_ROWS; // 0.25
 
 function loadSpriteAtlas() {
   const texture = new THREE.TextureLoader().load('sprite.png');
@@ -41,10 +41,10 @@ scene.background = new THREE.Color(0x333333);
 
 // Use OrthographicCamera for a true 2D map feel as specified in README
 const camera = new THREE.OrthographicCamera(
-  -window.innerWidth / 2, 
-  window.innerWidth / 2, 
-  window.innerHeight / 2, 
-  -window.innerHeight / 2, 
+  -window.innerWidth / 2,
+  window.innerWidth / 2,
+  window.innerHeight / 2,
+  -window.innerHeight / 2,
   0.1,
   10000
 );
@@ -57,7 +57,7 @@ camera.zoom = 20; // Set a higher default zoom level
 camera.updateProjectionMatrix();
 
 const renderer = new THREE.WebGLRenderer({ antialias: false });
-renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setPixelRatio(2);
 renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
@@ -68,10 +68,10 @@ document.body.appendChild(renderer.domElement);
 // Window resize handler - ensure this is separately defined so it can be reused
 function handleResize() {
   const h = window.innerHeight, w = window.innerWidth;
-  camera.left = -w/2;
-  camera.right = w/2;
-  camera.top = h/2;
-  camera.bottom = -h/2;
+  camera.left = -w / 2;
+  camera.right = w / 2;
+  camera.top = h / 2;
+  camera.bottom = -h / 2;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
@@ -95,9 +95,8 @@ controls.mouseButtons = {
 };
 
 // Game state
-let gameOver = false;
+let disablePlayer = false;
 let gameStarted = false;
-let gameStartTime = 0;
 let firstClick = true;
 
 // Meshes for cells and flags
@@ -106,6 +105,9 @@ let flagMesh;
 
 // Raycaster for mouse interaction
 const raycaster = new THREE.Raycaster();
+// Set raycaster threshold to 0.1 to improve cell detection
+raycaster.params.Points.threshold = 0.1;
+raycaster.params.Line.threshold = 0.1;
 const pointer = new THREE.Vector2();
 
 function initMeshes() {
@@ -113,7 +115,7 @@ function initMeshes() {
 
   // Remove any existing meshes
   if (cellMesh) scene.remove(cellMesh);
-  
+
   // Create a checkerboard background (optional)
   const boardGeo = new THREE.PlaneGeometry(W, H);
   // Make sure board is flat on XZ plane
@@ -127,7 +129,7 @@ function initMeshes() {
   // scene.add(boardMesh);
 
   // Create a plane geometry for cells - ensure they're square
-  const cellGeo = new THREE.PlaneGeometry(0.9, 0.9);
+  const cellGeo = new THREE.PlaneGeometry(1, 1);
   // Make sure cells are flat on XZ plane
   cellGeo.rotateX(-Math.PI / 2);
 
@@ -162,7 +164,7 @@ function initMeshes() {
       varying vec2 vUv;
       void main() {
         // Use the built-in uv attribute from THREE.PlaneGeometry
-        // Map to 4x3 grid (SPRITE_COLS=4, SPRITE_ROWS=3)
+        // Map to 4x4 grid (SPRITE_COLS=4, SPRITE_ROWS=4)
         vUv = vec2(aUV.x * ${SPRITE_CELL_WIDTH} + uv.x * ${SPRITE_CELL_WIDTH}, 
                    aUV.y * ${SPRITE_CELL_HEIGHT} + uv.y * ${SPRITE_CELL_HEIGHT});
         vec3 pos = position;
@@ -195,15 +197,15 @@ function initMeshes() {
     cellMesh.setMatrixAt(i, dummy.matrix);
   }
   cellMesh.instanceMatrix.needsUpdate = true;
-  
+
   // Manually compute and set bounding box for proper frustum culling
   cellMesh.geometry.boundingBox = new THREE.Box3(
     new THREE.Vector3(0, -0.1, 0),
     new THREE.Vector3(W, 0.1, H)
   );
   cellMesh.geometry.boundingSphere = new THREE.Sphere(
-    new THREE.Vector3(W/2, 0, H/2),
-    Math.sqrt(W*W + H*H)/2
+    new THREE.Vector3(W / 2, 0, H / 2),
+    Math.sqrt(W * W + H * H) / 2
   );
 
   // We no longer need the 3D flag mesh since we're using sprites
@@ -229,7 +231,7 @@ function updateMeshes() {
       if (state & MINE) {
         // Bomb sprite at position (2,0) in the atlas (bottom row, third column)
         uvArray[i * 2] = 2;
-        uvArray[i * 2 + 1] = 0;
+        uvArray[i * 2 + 1] = 1;
       } else {
         // Number tiles (1-8) in first two rows
         const adjacentMines = (state & NUMBER_MASK);
@@ -240,23 +242,23 @@ function updateMeshes() {
         } else if (adjacentMines <= 4) {
           // Numbers 1-4 in top row (columns 0-3)
           uvArray[i * 2] = adjacentMines - 1; // 0-based index (0,1,2,3)
-          uvArray[i * 2 + 1] = 2; // Top row
+          uvArray[i * 2 + 1] = 3; // Top row
         } else {
           // Numbers 5-8 in middle row (columns 0-3)
           uvArray[i * 2] = adjacentMines - 5; // 0-based index (0,1,2,3)
-          uvArray[i * 2 + 1] = 1; // Middle row
+          uvArray[i * 2 + 1] = 2; // Middle row
         }
       }
     } else {
       // Unrevealed tile (hidden) - using the dark gray cell at (3,0)
       uvArray[i * 2] = 3;
-      uvArray[i * 2 + 1] = 0;
-      
+      uvArray[i * 2 + 1] = 1;
+
       // Handle flags (using the sprite atlas)
       if (state & FLAGGED) {
         // Red flag at (0,2)
         uvArray[i * 2] = 0;
-        uvArray[i * 2 + 1] = 0;
+        uvArray[i * 2 + 1] = 1;
       }
     }
   }
@@ -267,7 +269,7 @@ function updateMeshes() {
   console.log("Meshes updated successfully");
 }
 
-function generateBoard(seed, minePercentage = 0.5) {
+function generateBoard(seed, minePercentage = 0.25) {
   console.log(`Generating board with seed: ${seed}`);
   const rng = seedrandom(seed);
   const simplex = new SimplexNoise(rng);
@@ -326,10 +328,9 @@ function generateBoard(seed, minePercentage = 0.5) {
 }
 
 function revealCell(index) {
-  if (gameOver) return;
+  if (disablePlayer) return;
   if (!gameStarted) {
     gameStarted = true;
-    gameStartTime = Date.now();
   }
 
   // Handle first click
@@ -387,34 +388,35 @@ function revealCell(index) {
 
   // Check if mine
   if (state & MINE) {
-    // Game over
-    gameOver = true;
-
-    // Reveal all mines
-    for (let i = 0; i < N; i++) {
-      if (states[i] & MINE) {
-        states[i] |= REVEALED;
-      }
+    disablePlayer = true;
+    // set favicon to a red cross
+    let favicon = document.querySelector('link[rel="icon"]');
+    if (!favicon) {
+      favicon = document.createElement('link');
+      favicon.rel = 'icon';
+      document.head.appendChild(favicon);
     }
-
-    // Update display
-    updateMeshes();
-
-    // Show game over message
-    console.log("Game over! You hit a mine!");
+    favicon.href = 'red.png';
 
     // Allow restart after a delay
     setTimeout(() => {
-      gameOver = false;
-      firstClick = true;
-      gameStarted = false;
+      disablePlayer = false;
+      favicon = document.querySelector('link[rel="icon"]');
+      if (!favicon) {
+        favicon = document.createElement('link');
+        favicon.rel = 'icon';
+        document.head.appendChild(favicon);
+      }
+      favicon.href = 'sprite.png';
+      // FIXME(ja): move/pan the player to a random location on the board
+
     }, 3000);
 
     return;
   }
 
   // Auto-reveal empty cells
-  const adjacentMines = (state & NUMBER_MASK) ;
+  const adjacentMines = (state & NUMBER_MASK);
   if (adjacentMines === 0) {
     // Flood fill to reveal adjacent empty cells
     const queue = [index];
@@ -448,7 +450,7 @@ function revealCell(index) {
           states[ni] |= REVEALED;
 
           // If this is also an empty cell, add to queue
-          const adjacentMinesNi = (states[ni] & NUMBER_MASK) ;
+          const adjacentMinesNi = (states[ni] & NUMBER_MASK);
           if (adjacentMinesNi === 0) {
             queue.push(ni);
           }
@@ -463,10 +465,9 @@ function revealCell(index) {
 }
 
 function toggleFlag(index) {
-  if (gameOver) return;
+  if (disablePlayer) return;
   if (!gameStarted) {
     gameStarted = true;
-    gameStartTime = Date.now();
   }
 
   // Skip if already revealed
@@ -484,20 +485,36 @@ function onPointerMove(event) {
   if (event.buttons === 2) {
     controls.isPanning = true;
   }
-  
+
+  // Calculate normalized device coordinates properly
   pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
   pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
-  
+
   // If in debug mode, update hovered cell info
   if (debugMode) {
     // Raycast to find intersected cell
     raycaster.setFromCamera(pointer, camera);
     const intersects = raycaster.intersectObject(cellMesh);
-    
+
     if (intersects.length > 0) {
-      // Get instance ID
-      hoveredCellIndex = intersects[0].instanceId;
-      updateHoverInfo(hoveredCellIndex);
+      // Get the point of intersection in world coordinates
+      const point = intersects[0].point;
+
+      // Convert world coordinates to cell indices
+      // Add a small offset to ensure we're hitting the center of cells
+      const x = Math.floor(point.x);
+      const z = Math.floor(point.z);
+
+      // Calculate the cell index from x,z coordinates
+      hoveredCellIndex = x + z * W;
+
+      // Ensure cell index is valid
+      if (hoveredCellIndex >= 0 && hoveredCellIndex < N) {
+        updateHoverInfo(hoveredCellIndex);
+      } else {
+        hoveredCellIndex = -1;
+        clearHoverInfo();
+      }
     } else {
       hoveredCellIndex = -1;
       clearHoverInfo();
@@ -508,12 +525,12 @@ function onPointerMove(event) {
 function updateHoverInfo(cellIndex) {
   const infoBox = document.getElementById('infoBox');
   if (!infoBox) return;
-  
+
   if (cellIndex >= 0 && cellIndex < N) {
     const state = states[cellIndex];
     const x = cellIndex % W;
     const z = Math.floor(cellIndex / W);
-    
+
     let cellType = '';
     if (state & MINE) {
       cellType = 'MINE';
@@ -521,10 +538,10 @@ function updateHoverInfo(cellIndex) {
       const adjacentMines = (state & NUMBER_MASK);
       cellType = adjacentMines === 0 ? 'Empty' : `Number ${adjacentMines}`;
     }
-    
+
     const revealed = (state & REVEALED) ? 'Revealed' : 'Hidden';
     const flagged = (state & FLAGGED) ? 'Flagged' : 'Not flagged';
-    
+
     infoBox.textContent = `Cell [${x},${z}]: ${cellType} | ${revealed} | ${flagged}`;
     infoBox.style.display = 'block';
   }
@@ -542,16 +559,26 @@ function onPointerDown(event) {
   pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
   pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
+  // Only handle clicks if not dragging/panning
+  if (controls.isPanning) return;
+
   // Raycast to find intersected cell
   raycaster.setFromCamera(pointer, camera);
   const intersects = raycaster.intersectObject(cellMesh);
 
   if (intersects.length > 0) {
-    // Only handle clicks if not dragging/panning
-    if (!controls.isPanning) {
-      // Get instance ID
-      const instanceId = intersects[0].instanceId;
+    // Get the point of intersection in world coordinates
+    const point = intersects[0].point;
 
+    // Convert world coordinates to cell indices
+    const x = Math.floor(point.x);
+    const z = Math.floor(point.z);
+
+    // Calculate the cell index from x,z coordinates
+    const instanceId = x + z * W;
+
+    // Ensure cell index is valid
+    if (instanceId >= 0 && instanceId < N) {
       // Left click = reveal, Right click = flag
       if (event.button === 0) {
         // Left click
@@ -575,10 +602,10 @@ function onWheel(event) {
 
   // Zoom in/out with scroll wheel as specified in README
   const delta = event.deltaY;
-  
+
   // Apply zoom factor: multiply camera.zoom by 0.9 or 1.1
   camera.zoom *= (delta > 0) ? 0.9 : 1.1;
-  
+
   // Clamp zoom between 0.5 and 20 as specified in README
   camera.zoom = Math.min(Math.max(camera.zoom, 10), 50);
 
@@ -597,7 +624,7 @@ function initEventListeners() {
 
   // Mouse click
   window.addEventListener('pointerdown', onPointerDown);
-  
+
   // Mouse up
   window.addEventListener('pointerup', onPointerUp);
 
@@ -619,7 +646,6 @@ function initUI() {
     // use entered seed or generate random
     const seed = generateRandomSeed();
     // Reset game state
-    gameOver = false;
     firstClick = true;
     gameStarted = false;
 
@@ -635,7 +661,7 @@ function initUI() {
     debugMode = !debugMode;
     debugButton.textContent = `Debug: ${debugMode ? 'ON' : 'OFF'}`;
     updateMeshes();
-    
+
     // Show/hide info box based on debug mode
     const infoBox = document.getElementById('infoBox');
     if (infoBox) {
@@ -643,7 +669,7 @@ function initUI() {
     }
   });
   document.querySelector('.controls').appendChild(debugButton);
-  
+
   // Create info box for hover information
   const infoBox = document.createElement('div');
   infoBox.id = 'infoBox';

@@ -28,7 +28,7 @@ export type SpriteConstants = {
 
 // Sprite sheet constants - will be used in shader
 export const SPRITE_CELL_WIDTH = 0.25; // 1/4 (for 4x4 sprite atlas)
-export const SPRITE_CELL_HEIGHT = 0.25; // 1/4 (for 4x4 sprite atlas)
+export const SPRITE_CELL_HEIGHT = 1/3; // 1/4 (for 4x4 sprite atlas)
 
 // Constants for zoom
 export const ZOOM_MIN = 10;
@@ -150,7 +150,7 @@ export async function initRenderer() {
 // Load sprite atlas
 function loadSpriteAtlas(): THREE.Texture {
   const textureLoader = new THREE.TextureLoader();
-  return textureLoader.load('/sprite.png', (texture) => {
+  return textureLoader.load('/new.gif', (texture) => {
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.NearestFilter;
   });
@@ -196,7 +196,7 @@ export function initMeshes(
     offsets[i * 2] = x;
     offsets[i * 2 + 1] = z;
     uvs[i * 2] = 2; // Empty tile (col 3, 0-indexed)
-    uvs[i * 2 + 1] = 2; // Bottom row (row 3, 0-indexed)
+    uvs[i * 2 + 1] = 1; // Bottom row (row 3, 0-indexed)
   }
 
   // Add attributes to geometry
@@ -355,8 +355,8 @@ export function updateMeshes(
     if ((state & REVEALED) || debugMode) {
       if (state & MINE) {
         // Bomb sprite at position (2,0) in the atlas (bottom row, third column)
-        uvArray[i * 2] = 2;
-        uvArray[i * 2 + 1] = 1;
+        uvArray[i * 2] = 1;
+        uvArray[i * 2 + 1] = 0;
       } else {
         // Number tiles (1-8) in first two rows
         const adjacentMines = state & NUMBER_MASK;
@@ -367,30 +367,30 @@ export function updateMeshes(
         } else if (adjacentMines <= 4) {
           // Numbers 1-4 in top row (columns 0-3)
           uvArray[i * 2] = adjacentMines - 1; // 0-based index (0,1,2,3)
-          uvArray[i * 2 + 1] = 3; // Top row
+          uvArray[i * 2 + 1] = 2; // Top row
         } else {
           // Numbers 5-8 in middle row (columns 0-3)
           uvArray[i * 2] = adjacentMines - 5; // 0-based index (0,1,2,3)
-          uvArray[i * 2 + 1] = 2; // Middle row
+          uvArray[i * 2 + 1] = 1; // Middle row
         }
       }
     } else {
       // Unrevealed tile (hidden) - using the dark gray cell at (3,0)
       uvArray[i * 2] = 3;
-      uvArray[i * 2 + 1] = 1;
+      uvArray[i * 2 + 1] = 0;
 
       // Handle flags (using the sprite atlas)
       if (state & FLAGGED) {
         // Red flag at (0,2)
         uvArray[i * 2] = 0;
-        uvArray[i * 2 + 1] = 1;
+        uvArray[i * 2 + 1] = 0;
       }
 
       // Handle finished mines (completely boxed in)
       // Blue flag sprite to the right of red flag (1,1)
       if ((state & MINE) && (state & FINISHED)) {
         uvArray[i * 2] = 1;
-        uvArray[i * 2 + 1] = 1;
+        uvArray[i * 2 + 1] = 0;
       }
     }
   }

@@ -3,6 +3,26 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import seedrandom from 'seedrandom';
 import SimplexNoise from 'simplex-noise';
 
+// after your other globals, before init():
+let fadeOverlay = null;
+
+function setupFadeOverlay() {
+  fadeOverlay = document.createElement('div');
+  fadeOverlay.id = 'fadeOverlay';
+  Object.assign(fadeOverlay.style, {
+    position: 'fixed',
+    top: '0',
+    left: '0',
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'black',
+    opacity: '0',
+    pointerEvents: 'none',
+    transition: 'opacity 0.25s ease',
+    zIndex: '9999',
+  });
+  document.body.appendChild(fadeOverlay);
+}
 // --- CONFIG ---
 // Use a 1000x1000 grid as specified in README
 const BOARD_SIZE = 1000;
@@ -269,7 +289,7 @@ function updateMeshes() {
   console.log("Meshes updated successfully");
 }
 
-function generateBoard(seed, minePercentage = 0.25) {
+function generateBoard(seed, minePercentage = 0.3) {
   console.log(`Generating board with seed: ${seed}`);
   const rng = seedrandom(seed);
   const simplex = new SimplexNoise(rng);
@@ -397,14 +417,26 @@ function revealCell(index) {
       document.head.appendChild(favicon);
     }
     favicon.href = 'red.png';
-    // FIXME(ja): fade to black for everything
-
+    if (fadeOverlay) fadeOverlay.style.opacity = '1';
 
     // Allow restart after a delay
     setTimeout(() => {
-      // FIXME(ja): fade in from black for everything
-      
+      // Move the player to a random location on the board
+      // Choose a new random position within a reasonable range (not the entire board)
+      const viewRange = 100; // A more reasonable view range
+      const randomX = Math.floor(Math.random() * (W - viewRange));
+      const randomZ = Math.floor(Math.random() * (H - viewRange));
 
+      // Move both camera position and target coherently
+      camera.position.set(randomX + viewRange / 2, camera.position.y, randomZ + viewRange / 2);
+      controls.target.set(randomX + viewRange / 2, 0, randomZ + viewRange / 2);
+
+      // Update camera and controls
+      camera.updateProjectionMatrix();
+      controls.update();
+
+      if (fadeOverlay) fadeOverlay.style.opacity = '0';
+ 
       // Re-enable player
       disablePlayer = false;
       favicon = document.querySelector('link[rel="icon"]');
@@ -414,20 +446,7 @@ function revealCell(index) {
         document.head.appendChild(favicon);
       }
       favicon.href = 'sprite.png';
-      // Move/pan the player to a random location on the board
-      // Choose a new random position within a reasonable range (not the entire board)
-      const viewRange = 100; // A more reasonable view range
-      const randomX = Math.floor(Math.random() * (W - viewRange));
-      const randomZ = Math.floor(Math.random() * (H - viewRange));
-      
-      // Move both camera position and target coherently
-      camera.position.set(randomX + viewRange/2, camera.position.y, randomZ + viewRange/2);
-      controls.target.set(randomX + viewRange/2, 0, randomZ + viewRange/2);
-      
-      // Update camera and controls
-      camera.updateProjectionMatrix();
-      controls.update();
-    }, 3000);
+    }, 1000);
 
     return;
   }
@@ -709,6 +728,7 @@ function generateRandomSeed() {
 }
 
 function init() {
+  setupFadeOverlay();
   initMeshes();
   initEventListeners();
   initUI();

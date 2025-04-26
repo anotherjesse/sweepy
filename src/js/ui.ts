@@ -34,7 +34,6 @@ export function initUI() {
     const generateButton = document.getElementById("generateButton");
     if (generateButton) {
         generateButton.addEventListener("click", () => {
-            gameState.gameStarted = false;
             generateBoard();
         });
     }
@@ -48,7 +47,7 @@ export function initUI() {
         debugButton.textContent = `Debug: ${
             gameState.debugMode ? "ON" : "OFF"
         }`;
-        updateMeshes(gameState);
+        updateMeshes();
 
         // Show/hide info box based on debug mode
         const infoBox = document.getElementById("infoBox");

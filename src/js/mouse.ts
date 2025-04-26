@@ -141,7 +141,7 @@ export function onPointerUp(event: MouseEvent) {
     const fadeOverlay = document.getElementById('fadeOverlay') as HTMLDivElement;
     
     if (event.button === 0) {
-      revealCell(currentCellIndex, gamepadState);
+      revealCell(currentCellIndex);
     } else if (event.button === 2) {
       toggleFlag(currentCellIndex);
     }
@@ -150,16 +150,9 @@ export function onPointerUp(event: MouseEvent) {
 
 // Handler for mouse wheel events
 export function onWheel(event: WheelEvent) {
-  // Prevent default scrolling behavior
   event.preventDefault();
 
-  // Zoom in/out with scroll wheel
   const delta = event.deltaY;
-  
-  // Use centralized zoom functions
-  if (delta > 0) {
-    zoomOut();
-  } else {
-    zoomIn();
-  }
+
+  (delta > 0) ? zoomOut() : zoomIn();
 }

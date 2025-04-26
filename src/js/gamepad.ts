@@ -163,14 +163,12 @@ export function pollGamepads() {
     }
 
     // Zoom controls with shoulder buttons (L1/R1 or LB/RB)
-    // Button 4 (L1 on PlayStation, LB on Xbox) - Zoom out
     if (gamepad.buttons[4]?.pressed) {
-      zoomOut(0.95); // Use a slightly different factor for gamepad
+      zoomOut(0.95);
     }
 
-    // Button 5 (R1 on PlayStation, RB on Xbox) - Zoom in
     if (gamepad.buttons[5]?.pressed) {
-      zoomIn(1.05); // Use a slightly different factor for gamepad
+      zoomIn(1.05);
     }
 
     // Button actions
@@ -179,7 +177,7 @@ export function pollGamepads() {
       gamepad.buttons[0]?.pressed &&
       !(gamepad.buttons[0] as any).previouslyPressed
     ) {
-      revealCell(gamepadState.gamepadCursorIndex, gamepadState);
+      revealCell(gamepadState.gamepadCursorIndex);
       (gamepad.buttons[0] as any).previouslyPressed = true;
     } else if (!gamepad.buttons[0]?.pressed) {
       (gamepad.buttons[0] as any).previouslyPressed = false;

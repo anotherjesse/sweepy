@@ -1,15 +1,14 @@
 import seedrandom from "seedrandom";
 import SimplexNoise from "simplex-noise";
-import { type GamepadState, gamepadState } from "./gamepad";
+import { gamepadState } from "./gamepad";
 import { renderState, updateMeshes } from "./render";
 import { loadState, saveState, updatePreferences } from "./persist";
 import { fade, unfade } from "./ui";
 import * as config from "./config";
 
 // Game state type
-export type GameState = {
+type GameState = {
     disablePlayer: boolean;
-    gameStarted: boolean;
     debugMode: boolean;
     hoveredCellIndex: number;
     currentSeed: string;
@@ -21,7 +20,6 @@ export const states = new Uint8Array(config.N);
 // Game state object
 export const gameState: GameState = {
     disablePlayer: false,
-    gameStarted: false,
     debugMode: false,
     hoveredCellIndex: -1,
     currentSeed: "",
@@ -60,14 +58,16 @@ export function generateBoard(
     }
 
     console.log(
-        `Generated ${mineCount} mines (${(mineCount / config.N * 100).toFixed(2)}%)`,
+        `Generated ${mineCount} mines (${
+            (mineCount / config.N * 100).toFixed(2)
+        }%)`,
     );
 
     // Calculate adjacent mines for each cell
     calculateAdjacentMines();
 
     // Update the mesh display
-    updateMeshes(gameState);
+    updateMeshes();
 
     // Save the current seed and game state
     saveGameData(seed);
@@ -92,7 +92,9 @@ function calculateAdjacentMines() {
                 const nz = z + dz;
 
                 // Check bounds
-                if (nx < 0 || nx >= config.W || nz < 0 || nz >= config.H) continue;
+                if (nx < 0 || nx >= config.W || nz < 0 || nz >= config.H) {
+                    continue;
+                }
 
                 const ni = nx + nz * config.W;
                 if (states[ni] & config.cellStateConstants.MINE) count++;
@@ -177,47 +179,33 @@ export const finishTeleport = () => {
 // Reveal a cell
 export function revealCell(
     index: number,
-    gamepadState: GamepadState,
 ) {
     const { disablePlayer } = gameState;
     if (disablePlayer) return;
 
-    if (!gameState.gameStarted) {
-        gameState.gameStarted = true;
-    }
-
     const state = states[index];
 
-    // Skip if already revealed or flagged
-    if (state & config.cellStateConstants.REVEALED || state & config.cellStateConstants.FLAGGED) return;
+    if (
+        state & config.cellStateConstants.REVEALED ||
+        state & config.cellStateConstants.FLAGGED
+    ) return;
 
-    // Check if mine first
     if (state & config.cellStateConstants.MINE) {
-        startTeleport();
-        return;
+        return startTeleport();
     }
 
-    // Mark as revealed
     states[index] |= config.cellStateConstants.REVEALED;
 
-    // Auto-reveal empty cells
     const adjacentMines = state & config.cellStateConstants.NUMBER_MASK;
     if (adjacentMines === 0) {
-        // Flood fill to reveal adjacent empty cells
         floodFillReveal(index);
     }
 
-    // Check for mines that are now completely boxed in
     checkForBoxedInMines();
-
-    // Update display
-    updateMeshes(gameState);
-
-    // Save the updated state
+    updateMeshes();
     saveState(states);
 }
 
-// Flood fill to reveal adjacent empty cells
 function floodFillReveal(index: number) {
     const { NUMBER_MASK, REVEALED, FLAGGED } = config.cellStateConstants;
 
@@ -229,7 +217,6 @@ function floodFillReveal(index: number) {
         const x = currentIndex % config.W;
         const z = Math.floor(currentIndex / config.W);
 
-        // Check all adjacent cells
         for (let dx = -1; dx <= 1; dx++) {
             for (let dz = -1; dz <= 1; dz++) {
                 if (dx === 0 && dz === 0) continue;
@@ -237,8 +224,9 @@ function floodFillReveal(index: number) {
                 const nx = x + dx;
                 const nz = z + dz;
 
-                // Check bounds
-                if (nx < 0 || nx >= config.W || nz < 0 || nz >= config.H) continue;
+                if (nx < 0 || nx >= config.W || nz < 0 || nz >= config.H) {
+                    continue;
+                }
 
                 const ni = nx + nz * config.W;
 
@@ -248,13 +236,10 @@ function floodFillReveal(index: number) {
                     (states[ni] & FLAGGED)
                 ) continue;
 
-                // Mark as visited
                 visited.add(ni);
 
-                // Reveal this cell
                 states[ni] |= REVEALED;
 
-                // If this is also an empty cell, add to queue
                 const adjacentMinesNi = states[ni] & NUMBER_MASK;
                 if (adjacentMinesNi === 0) {
                     queue.push(ni);
@@ -313,14 +298,10 @@ export function toggleFlag(index: number) {
 
     if (disablePlayer) return;
 
-    if (!gameState.gameStarted) {
-        gameState.gameStarted = true;
-    }
-
     if (states[index] & REVEALED) return;
 
     states[index] ^= FLAGGED;
-    updateMeshes(gameState);
+    updateMeshes();
     checkForBoxedInMines();
     saveState(states);
 }
@@ -358,10 +339,9 @@ export async function loadGameData(): Promise<boolean> {
 
         if (savedSeed) {
             gameState.currentSeed = savedSeed;
-            gameState.gameStarted = true;
 
             // Update display
-            updateMeshes(gameState);
+            updateMeshes();
             return true;
         }
     }

@@ -44,7 +44,7 @@ async function init() {
   await initRenderer();
 
   // Initialize meshes
-  initMeshes(gameState, config.cellStateConstants, gamepadState);
+  initMeshes();
 
   // Setup event listeners
   initEventListeners();

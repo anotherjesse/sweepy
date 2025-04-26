@@ -175,7 +175,7 @@ export function onKeyDown(event: KeyboardEvent) {
     case "Space":
     case "Enter":
       // Select/reveal current cell
-      revealCell(keyboardState.cursorIndex, gamepadState);
+      revealCell(keyboardState.cursorIndex);
       break;
     case "KeyF":
       // Flag current cell

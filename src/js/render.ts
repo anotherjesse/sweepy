@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import  { type GameState, states } from "./game";
-import type { GamepadState } from "./gamepad";
+import  {  states, gameState } from "./game";
+import { gamepadState } from "./gamepad";
 import { loadPreferences, updatePreferences } from "./persist";
 import * as config from "./config";
 
@@ -62,20 +62,20 @@ export function zoomIn(factor = ZOOM_IN_FACTOR) {
 export function zoomOut(factor = ZOOM_OUT_FACTOR) {
   renderState.camera.zoom *= factor;
   applyZoomConstraints();
+  saveCameraState();
 }
 
 export function setZoom(level: number) {
   renderState.camera.zoom = level;
   applyZoomConstraints();
+  saveCameraState();
 }
 
-export function applyZoomConstraints() {
-  // Clamp zoom between min and max
+function applyZoomConstraints() {
   renderState.camera.zoom = Math.min(
     Math.max(renderState.camera.zoom, ZOOM_MIN),
     ZOOM_MAX,
   );
-  // Update the projection matrix
   renderState.camera.updateProjectionMatrix();
 }
 
@@ -171,11 +171,7 @@ function loadSpriteAtlas(): THREE.Texture {
 }
 
 // Initialize meshes
-export function initMeshes(
-  gameState: GameState,
-  cellConstants: config.CellStateConstants,
-  gamepadState: GamepadState,
-) {
+export function initMeshes() {
   console.log("Initializing meshes");
 
   const {
@@ -344,7 +340,7 @@ export function initMeshes(
   renderState.keyboardCursorMesh = keyboardCursorMesh;
 }
 
-export function updateMeshes(  gameState: GameState,) {
+export function updateMeshes( ) {
   console.log("Updating meshes with states array");
   const { cellMesh } = renderState;
 

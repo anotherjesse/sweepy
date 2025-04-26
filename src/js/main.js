@@ -1,0 +1,172 @@
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import seedrandom from 'seedrandom';
+import SimplexNoise from 'simplex-noise';
+
+// --- CONFIG ---
+const W = 1000, H = 1000, N = W * H;
+// 16-bit per tile → ~2 MiB
+const states = new Uint16Array(N);
+
+// Simple color palette for values 0–8
+const palette = [
+  new THREE.Color(0.9,0.9,0.9),
+  new THREE.Color(0.5,0.5,0.8),
+  new THREE.Color(0.3,0.7,0.3),
+  new THREE.Color(0.6,0.4,0.2),
+  new THREE.Color(0.8,0.8,0.1),
+  new THREE.Color(0.5,0.2,0.7),
+  new THREE.Color(0.2,0.8,0.8),
+  new THREE.Color(0.8,0.3,0.3),
+  new THREE.Color(0.1,0.1,0.1),
+];
+
+// --- Three.js SETUP ---
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 10000);
+camera.position.set(W/2, 800, H*1.2);
+camera.lookAt(W/2, 0, H/2);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+
+let mesh;
+function initMesh() {
+  if (mesh) scene.remove(mesh);
+  const geo = new THREE.PlaneGeometry(1, 1);
+  const mat = new THREE.MeshBasicMaterial({ vertexColors: true });
+  mesh = new THREE.InstancedMesh(geo, mat, N);
+  scene.add(mesh);
+}
+
+function updateMesh() {
+  const dummy = new THREE.Object3D();
+  const colorArr = new Float32Array(N * 3);
+
+  for (let i = 0; i < N; i++) {
+    const x = i % W, y = Math.floor(i / W);
+    dummy.position.set(x, 0, y);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix);
+
+    const v = states[i] % 9;
+    const c = palette[v];
+    colorArr[3*i    ] = c.r;
+    colorArr[3*i + 1] = c.g;
+    colorArr[3*i + 2] = c.b;
+  }
+
+  mesh.geometry.setAttribute(
+    'instanceColor',
+    new THREE.InstancedBufferAttribute(colorArr, 3)
+  );
+  mesh.instanceMatrix.needsUpdate = true;
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// --- IndexedDB PERSISTENCE ---
+function saveStates() {
+  const req = indexedDB.open('MCBoard', 1);
+  req.onupgradeneeded = e => {
+    e.target.result.createObjectStore('states');
+  };
+  req.onsuccess = () => {
+    const db = req.result;
+    const tx = db.transaction('states', 'readwrite');
+    tx.objectStore('states').put(states.buffer, 'tileStates');
+  };
+}
+
+function loadStates(callback) {
+  const req = indexedDB.open('MCBoard');
+  req.onsuccess = () => {
+    const db = req.result;
+    const tx = db.transaction('states', 'readonly');
+    const getReq = tx.objectStore('states').get('tileStates');
+    getReq.onsuccess = () => {
+      const buf = getReq.result;
+      if (buf) {
+        states.set(new Uint16Array(buf));
+        callback();
+      }
+    };
+  };
+}
+
+// --- SEED STORAGE ---
+function saveSeed(seed) {
+  localStorage.setItem('boardSeed', seed);
+}
+
+function getSavedSeed() {
+  return localStorage.getItem('boardSeed');
+}
+
+function generateRandomSeed() {
+  return Math.floor(Math.random() * 1000000000).toString();
+}
+
+// --- MAP GENERATION & UI ---
+function initUI() {
+  document.getElementById('generateButton').addEventListener('click', () => {
+    // use entered seed or get from localStorage or generate random
+    let seed = document.getElementById('seedInput').value.trim();
+    
+    if (!seed) {
+      seed = getSavedSeed() || generateRandomSeed();
+      document.getElementById('seedInput').value = seed;
+    }
+    
+    saveSeed(seed);
+    const rng = seedrandom(seed);
+    const noise = new SimplexNoise(rng);
+
+    // fill states via 2D noise → [0..8]
+    const scale = 100;
+    for (let i = 0; i < N; i++) {
+      const x = i % W, y = Math.floor(i / W);
+      const n = noise.noise2D(x/scale, y/scale);      // −1…+1
+      states[i] = Math.floor((n + 1) * 4);            // 0…8
+    }
+
+    initMesh();
+    updateMesh();
+    saveStates();
+  });
+
+  // Load saved seed on page load
+  const savedSeed = getSavedSeed();
+  if (savedSeed) {
+    document.getElementById('seedInput').value = savedSeed;
+  }
+  
+  // auto-load on page load
+  loadStates(() => {
+    initMesh();
+    updateMesh();
+  });
+}
+
+// handle resize
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// Initialize the application
+function init() {
+  animate();
+  initUI();
+}
+
+// Start the application when DOM is ready
+window.addEventListener('DOMContentLoaded', init); 

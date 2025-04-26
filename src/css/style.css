@@ -1,0 +1,23 @@
+body { 
+  margin: 0; 
+  overflow: hidden; 
+}
+
+#ui {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
+  background: rgba(255,255,255,0.8);
+  padding: 8px;
+  border-radius: 4px;
+  font-family: sans-serif;
+}
+
+#seedInput {
+  width: 180px;
+}
+
+button {
+  margin-left: 8px;
+} 

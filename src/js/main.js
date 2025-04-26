@@ -9,7 +9,7 @@ const BOARD_SIZE = 1000;
 const W = BOARD_SIZE, H = BOARD_SIZE, N = W * H;
 
 // Debug mode flag
-let debugMode = false;
+let debugMode = true;
 // Track currently hovered cell
 let hoveredCellIndex = -1;
 
@@ -113,8 +113,7 @@ function initMeshes() {
 
   // Remove any existing meshes
   if (cellMesh) scene.remove(cellMesh);
-  if (flagMesh) scene.remove(flagMesh);
-
+  
   // Create a checkerboard background (optional)
   const boardGeo = new THREE.PlaneGeometry(W, H);
   // Make sure board is flat on XZ plane
@@ -207,41 +206,22 @@ function initMeshes() {
     Math.sqrt(W*W + H*H)/2
   );
 
-  // Simple flag mesh for now (can be replaced with sprite later)
-  const flagGeo = new THREE.ConeGeometry(0.3, 0.6, 3);
-  flagGeo.rotateX(Math.PI);
-  const flagMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-  flagMesh = new THREE.InstancedMesh(flagGeo, flagMat, N);
-  flagMesh.frustumCulled = true;
-  flagMesh.count = 0; // Start with no flags visible
-  
-  // Set bounding box for flags too
-  flagMesh.geometry.boundingBox = new THREE.Box3(
-    new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(W, 1, H)
-  );
-  flagMesh.geometry.boundingSphere = new THREE.Sphere(
-    new THREE.Vector3(W/2, 0.5, H/2),
-    Math.sqrt(W*W + H*H)/2
-  );
+  // We no longer need the 3D flag mesh since we're using sprites
 
   scene.add(cellMesh);
-  scene.add(flagMesh);
   console.log("Meshes added to scene");
 }
 
 function updateMeshes() {
   console.log("Updating meshes with states array");
-  if (!cellMesh || !flagMesh) {
+  if (!cellMesh) {
     console.error("Meshes not initialized, initializing now");
     initMeshes();
   }
 
-  const dummy = new THREE.Object3D();
-  let flagCount = 0, uvArray = cellMesh.geometry.getAttribute('aUV').array;
+  const uvArray = cellMesh.geometry.getAttribute('aUV').array;
 
   for (let i = 0; i < N; i++) {
-    const x = i % W, z = Math.floor(i / W);
     const state = states[i];
 
     // Update UV coordinates based on cell state
@@ -271,31 +251,18 @@ function updateMeshes() {
       // Unrevealed tile (hidden) - using the dark gray cell at (3,0)
       uvArray[i * 2] = 3;
       uvArray[i * 2 + 1] = 0;
-    }
-
-    // Handle flags
-    if (state & FLAGGED) {
-      if (!((state & REVEALED) || debugMode)) {
-        // Red flag at (0,2), Blue flag at (1,2)
-        uvArray[i * 2] = 0; // Red flag at (0,2)
-        uvArray[i * 2 + 1] = 2; // Bottom row
-      }
       
-      // Add physical flag for 3D effect (optional)
-      dummy.position.set(x, 0.5, z);
-      dummy.rotation.set(0, 0, 0);
-      dummy.updateMatrix();
-      flagMesh.setMatrixAt(flagCount, dummy.matrix);
-      flagCount++;
+      // Handle flags (using the sprite atlas)
+      if (state & FLAGGED) {
+        // Red flag at (0,2)
+        uvArray[i * 2] = 0;
+        uvArray[i * 2 + 1] = 0;
+      }
     }
   }
 
   // Update UV attribute
   cellMesh.geometry.getAttribute('aUV').needsUpdate = true;
-
-  // Update visible flag count
-  flagMesh.count = flagCount;
-  flagMesh.instanceMatrix.needsUpdate = true;
 
   console.log("Meshes updated successfully");
 }

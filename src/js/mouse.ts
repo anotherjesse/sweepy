@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { W, H, N, gameState, revealCell, toggleFlag } from './game';
-import { renderState, updateHoverInfo, clearHoverInfo } from './render';
+import { renderState, updateHoverInfo, clearHoverInfo, zoomIn, zoomOut } from './render';
 import { gamepadState } from './gamepad';
 
 
@@ -153,12 +153,11 @@ export function onWheel(event: WheelEvent) {
 
   // Zoom in/out with scroll wheel
   const delta = event.deltaY;
-
-  // Apply zoom factor: multiply camera.zoom by 0.9 or 1.1
-  renderState.camera.zoom *= (delta > 0) ? 0.9 : 1.1;
-
-  // Clamp zoom between 10 and 50
-  renderState.camera.zoom = Math.min(Math.max(renderState.camera.zoom, 10), 50);
-
-  renderState.camera.updateProjectionMatrix();
+  
+  // Use centralized zoom functions
+  if (delta > 0) {
+    zoomOut();
+  } else {
+    zoomIn();
+  }
 }

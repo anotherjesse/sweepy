@@ -1,5 +1,5 @@
 import { H, revealCell, toggleFlag, W } from "./game";
-import { renderState } from "./render";
+import { renderState, zoomIn, zoomOut } from "./render";
 
 // Extend GamepadButton interface
 export type GamepadButton = {
@@ -164,22 +164,12 @@ export function pollGamepads() {
     // Zoom controls with shoulder buttons (L1/R1 or LB/RB)
     // Button 4 (L1 on PlayStation, LB on Xbox) - Zoom out
     if (gamepad.buttons[4]?.pressed) {
-      renderState.camera.zoom *= 0.95; // Zoom out
-      renderState.camera.zoom = Math.min(
-        Math.max(renderState.camera.zoom, 10),
-        50,
-      ); // Clamp zoom
-      renderState.camera.updateProjectionMatrix();
+      zoomOut(0.95); // Use a slightly different factor for gamepad
     }
 
     // Button 5 (R1 on PlayStation, RB on Xbox) - Zoom in
     if (gamepad.buttons[5]?.pressed) {
-      renderState.camera.zoom *= 1.05; // Zoom in
-      renderState.camera.zoom = Math.min(
-        Math.max(renderState.camera.zoom, 10),
-        50,
-      ); // Clamp zoom
-      renderState.camera.updateProjectionMatrix();
+      zoomIn(1.05); // Use a slightly different factor for gamepad
     }
 
     // Button actions

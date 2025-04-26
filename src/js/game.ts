@@ -2,7 +2,7 @@ import seedrandom from "seedrandom";
 import SimplexNoise from "simplex-noise";
 import type { GamepadState } from "./gamepad";
 import type { KeyboardState } from "./keyboard";
-import { renderState, updateMeshes } from "./render";
+import { renderState, updateMeshes, setZoom } from "./render";
 import { saveState, loadState } from "./persist";
 
 // Cell state constants type
@@ -214,10 +214,10 @@ export function revealCell(
                 0,
                 newCenterZ
             );
-            renderState.camera.zoom = 20; // Set a higher default zoom level
+            // // Set zoom using the centralized zoom function
+            // setZoom(20);
 
-            // Update camera and controls
-            renderState.camera.updateProjectionMatrix();
+            // Update controls
             renderState.controls.update();
 
             // Move gamepad cursor to new position

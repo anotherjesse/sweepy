@@ -30,6 +30,12 @@ export type SpriteConstants = {
 export const SPRITE_CELL_WIDTH = 0.25; // 1/4 (for 4x4 sprite atlas)
 export const SPRITE_CELL_HEIGHT = 0.25; // 1/4 (for 4x4 sprite atlas)
 
+// Constants for zoom
+export const ZOOM_MIN = 10;
+export const ZOOM_MAX = 50;
+export const ZOOM_IN_FACTOR = 1.1;  // Consistent zoom in factor
+export const ZOOM_OUT_FACTOR = 0.9; // Consistent zoom out factor
+
 // Create render state object
 export const renderState: RenderState = {
   scene: new THREE.Scene(),
@@ -46,6 +52,29 @@ export const renderState: RenderState = {
   cellMesh: null,
   keyboardCursorMesh: null
 };
+
+// Zoom control functions
+export function zoomIn(factor = ZOOM_IN_FACTOR) {
+  renderState.camera.zoom *= factor;
+  applyZoomConstraints();
+}
+
+export function zoomOut(factor = ZOOM_OUT_FACTOR) {
+  renderState.camera.zoom *= factor;
+  applyZoomConstraints();
+}
+
+export function setZoom(level: number) {
+  renderState.camera.zoom = level;
+  applyZoomConstraints();
+}
+
+export function applyZoomConstraints() {
+  // Clamp zoom between min and max
+  renderState.camera.zoom = Math.min(Math.max(renderState.camera.zoom, ZOOM_MIN), ZOOM_MAX);
+  // Update the projection matrix
+  renderState.camera.updateProjectionMatrix();
+}
 
 // Initialize the renderer
 export function initRenderer() {

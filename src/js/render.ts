@@ -97,7 +97,7 @@ export async function initRenderer() {
   // Default position (center of board looking down)
   const defaultPosition = { x: config.W / 2, y: 100, z: config.H / 2 };
 
-  const camPos = prefs?.cameraPosition ?? defaultPosition;
+  const camPos =  defaultPosition; // prefs?.cameraPosition ??
 
   renderState.camera.position.set(camPos.x, camPos.y, camPos.z);
   renderState.camera.lookAt(camPos.x, 0, camPos.z);

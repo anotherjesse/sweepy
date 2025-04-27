@@ -4,6 +4,8 @@ import * as THREE from "three";
 import { renderState } from "./render";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
+// FIXME(ja): the camera should try to show all the players and zoom out a little
+
 export const camera = new THREE.OrthographicCamera(
     -window.innerWidth / 2,
     window.innerWidth / 2,
@@ -13,9 +15,16 @@ export const camera = new THREE.OrthographicCamera(
     10000,
 );
 
+// Track when we last saved camera state to avoid saving too frequently
+let lastCameraSave = 0;
+
 // Save camera state to preferences
-export async function saveCameraState() {
-    await updatePreferences({
+export const saveCameraState = async () => {
+    const now = Date.now();
+    if (now - lastCameraSave < config.CAMERA_SAVE_INTERVAL) return;
+    lastCameraSave = now;
+
+    return updatePreferences({
         cameraPosition: {
             x: renderState.camera.position.x,
             y: renderState.camera.position.y,
@@ -23,18 +32,12 @@ export async function saveCameraState() {
         },
         zoom: renderState.camera.zoom,
     });
-}
+};
 
 // Zoom control functions
-export function zoomIn(factor: number = config.ZOOM_IN_FACTOR) {
+export function zoomBy(factor: number) {
     camera.zoom *= factor;
     applyZoomConstraints();
-}
-
-export function zoomOut(factor: number = config.ZOOM_OUT_FACTOR) {
-    camera.zoom *= factor;
-    applyZoomConstraints();
-    saveCameraState();
 }
 
 export function setZoom(level: number) {
@@ -88,4 +91,13 @@ export const initCamera = async () => {
         MIDDLE: THREE.MOUSE.MIDDLE,
         RIGHT: THREE.MOUSE.PAN,
     };
+
+    window.addEventListener("wheel", onWheel);
 };
+
+// Handler for mouse wheel events
+function onWheel(event: WheelEvent) {
+    // FIXME(ja): [Intervention] Unable to preventDefault inside passive event listener due to target being treated as passive. See https://www.chromestatus.com/feature/6662647093133312
+    // event.preventDefault();
+    (event.deltaY > 0) ? zoomBy(0.95) : zoomBy(1.05);
+}

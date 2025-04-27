@@ -1,9 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { gameState, states } from "../game";
-import { gamepadState } from "../input/gamepad";
-import { keyboardState } from "../input/keyboard";
-import { loadPreferences, updatePreferences } from "../persist";
 import * as config from "../config";
 import { camera, initCamera, saveCameraState } from "./camera";
 
@@ -62,10 +59,10 @@ export function initMeshes() {
 
     // Remove any existing meshes
     if (currentCellMesh) scene.remove(currentCellMesh);
-    if (gamepadState.gamepadCursorMesh) {
-        scene.remove(gamepadState.gamepadCursorMesh);
-    }
-    if (currentKeyboardCursorMesh) scene.remove(currentKeyboardCursorMesh);
+    // if (gamepadState.gamepadCursorMesh) {
+    //     scene.remove(gamepadState.gamepadCursorMesh);
+    // }
+    // if (currentKeyboardCursorMesh) scene.remove(currentKeyboardCursorMesh);
 
     // Create a checkerboard background (optional)
     const boardGeo = new THREE.PlaneGeometry(config.W, config.H);
@@ -160,63 +157,63 @@ export function initMeshes() {
     scene.add(newCellMesh);
     renderState.cellMesh = newCellMesh;
 
-    // Create gamepad cursor indicator (a bright highlighted square)
-    const cursorGeo = new THREE.PlaneGeometry(1, 1);
-    cursorGeo.translate(0.5, -0.45, 0); // Slightly above cells
-    cursorGeo.rotateX(-Math.PI / 2);
+    // // Create gamepad cursor indicator (a bright highlighted square)
+    // const cursorGeo = new THREE.PlaneGeometry(1, 1);
+    // cursorGeo.translate(0.5, -0.45, 0); // Slightly above cells
+    // cursorGeo.rotateX(-Math.PI / 2);
 
-    const gamepadCursorMat = new THREE.MeshBasicMaterial({
-        color: 0xffff00,
-        transparent: true,
-        opacity: 0.5,
-        wireframe: false,
-        side: THREE.DoubleSide,
-    });
+    // const gamepadCursorMat = new THREE.MeshBasicMaterial({
+    //     color: 0xffff00,
+    //     transparent: true,
+    //     opacity: 0.5,
+    //     wireframe: false,
+    //     side: THREE.DoubleSide,
+    // });
 
-    const newGamepadCursorMesh = new THREE.Mesh(cursorGeo, gamepadCursorMat);
-    newGamepadCursorMesh.position.set(
-        gamepadState.gamepadCursorX,
-        0.1,
-        gamepadState.gamepadCursorZ,
-    );
-    newGamepadCursorMesh.visible = gamepadState.hasGamepad;
-    scene.add(newGamepadCursorMesh);
-    gamepadState.gamepadCursorMesh = newGamepadCursorMesh;
+    // const newGamepadCursorMesh = new THREE.Mesh(cursorGeo, gamepadCursorMat);
+    // newGamepadCursorMesh.position.set(
+    //     gamepadState.gamepadCursorX,
+    //     0.1,
+    //     gamepadState.gamepadCursorZ,
+    // );
+    // newGamepadCursorMesh.visible = gamepadState.hasGamepad;
+    // scene.add(newGamepadCursorMesh);
+    // gamepadState.gamepadCursorMesh = newGamepadCursorMesh;
 
-    // Create keyboard cursor indicator (a bright highlighted square with different color)
-    const keyboardCursorMat = new THREE.MeshBasicMaterial({
-        color: 0x00ffff, // Cyan color for keyboard cursor
-        transparent: true,
-        opacity: 0.7, // Make it more visible
-        wireframe: false,
-        side: THREE.DoubleSide,
-    });
+    // // Create keyboard cursor indicator (a bright highlighted square with different color)
+    // const keyboardCursorMat = new THREE.MeshBasicMaterial({
+    //     color: 0x00ffff, // Cyan color for keyboard cursor
+    //     transparent: true,
+    //     opacity: 0.7, // Make it more visible
+    //     wireframe: false,
+    //     side: THREE.DoubleSide,
+    // });
 
-    // Create a slightly larger cursor to make it more visible
-    const keyboardCursorGeo = new THREE.PlaneGeometry(1.05, 1.05);
-    keyboardCursorGeo.translate(0.5, -0.4, 0); // Slightly above cells and gamepad cursor
-    keyboardCursorGeo.rotateX(-Math.PI / 2);
+    // // Create a slightly larger cursor to make it more visible
+    // const keyboardCursorGeo = new THREE.PlaneGeometry(1.05, 1.05);
+    // keyboardCursorGeo.translate(0.5, -0.4, 0); // Slightly above cells and gamepad cursor
+    // keyboardCursorGeo.rotateX(-Math.PI / 2);
 
-    const keyboardCursorMesh = new THREE.Mesh(
-        keyboardCursorGeo,
-        keyboardCursorMat,
-    );
+    // const keyboardCursorMesh = new THREE.Mesh(
+    //     keyboardCursorGeo,
+    //     keyboardCursorMat,
+    // );
 
-    // Initialize keyboard cursor at center of the board or at current keyboard position
-    if (keyboardState) {
-        keyboardCursorMesh.position.set(
-            keyboardState.cursorX,
-            0.15, // Slightly higher than gamepad cursor
-            keyboardState.cursorZ,
-        );
-    } else {
-        keyboardCursorMesh.position.set(config.W / 2, 0.15, config.H / 2);
-    }
+    // // // Initialize keyboard cursor at center of the board or at current keyboard position
+    // // if (keyboardState) {
+    // //     keyboardCursorMesh.position.set(
+    // //         keyboardState.cursorX,
+    // //         0.15, // Slightly higher than gamepad cursor
+    // //         keyboardState.cursorZ,
+    // //     );
+    // // } else {
+    // //     keyboardCursorMesh.position.set(config.W / 2, 0.15, config.H / 2);
+    // // }
 
-    keyboardCursorMesh.visible = true;
+    // // keyboardCursorMesh.visible = true;
 
-    scene.add(keyboardCursorMesh);
-    renderState.keyboardCursorMesh = keyboardCursorMesh;
+    // scene.add(keyboardCursorMesh);
+    // renderState.keyboardCursorMesh = keyboardCursorMesh;
 }
 
 export function updateMeshes() {
@@ -299,45 +296,41 @@ export function handleResize() {
     renderState.renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-// Track when we last saved camera state to avoid saving too frequently
-let lastCameraSave = 0;
-const CAMERA_SAVE_INTERVAL = 1000; // Save at most once per second
-
 export function animate(inputPollFunction: () => void) {
     requestAnimationFrame(() => animate(inputPollFunction));
     renderState.controls.update();
     inputPollFunction();
     saveCameraState();
 
-    // Add pulsing animation to gamepad cursor
-    const { gamepadCursorMesh } = gamepadState;
-    if (gamepadCursorMesh && gamepadCursorMesh.visible) {
-        // Pulse the opacity between 0.2 and 0.7
-        const pulseFactor = (Math.sin(Date.now() * 0.005) + 1) / 2; // 0 to 1 value
-        (gamepadCursorMesh.material as THREE.MeshBasicMaterial).opacity = 0.2 +
-            pulseFactor * 0.5;
-    }
+    // // Add pulsing animation to gamepad cursor
+    // const { gamepadCursorMesh } = gamepadState;
+    // if (gamepadCursorMesh && gamepadCursorMesh.visible) {
+    //     // Pulse the opacity between 0.2 and 0.7
+    //     const pulseFactor = (Math.sin(Date.now() * 0.005) + 1) / 2; // 0 to 1 value
+    //     (gamepadCursorMesh.material as THREE.MeshBasicMaterial).opacity = 0.2 +
+    //         pulseFactor * 0.5;
+    // }
 
-    // Update keyboard cursor position
-    const { keyboardCursorMesh } = renderState;
-    if (keyboardCursorMesh && keyboardState) {
-        // Ensure keyboard cursor is correctly positioned
-        keyboardCursorMesh.position.set(
-            keyboardState.cursorX,
-            0.15, // Keep consistent with initialization
-            keyboardState.cursorZ,
-        );
+    // // Update keyboard cursor position
+    // const { keyboardCursorMesh } = renderState;
+    // if (keyboardCursorMesh && keyboardState) {
+    //     // Ensure keyboard cursor is correctly positioned
+    //     keyboardCursorMesh.position.set(
+    //         keyboardState.cursorX,
+    //         0.15, // Keep consistent with initialization
+    //         keyboardState.cursorZ,
+    //     );
 
-        // Add pulsing animation to keyboard cursor with different timing
-        const keyboardPulseFactor = (Math.sin(Date.now() * 0.006) + 1) / 2; // 0 to 1 value
-        (keyboardCursorMesh.material as THREE.MeshBasicMaterial).opacity = 0.3 +
-            keyboardPulseFactor * 0.5; // Higher base opacity
+    //     // Add pulsing animation to keyboard cursor with different timing
+    //     const keyboardPulseFactor = (Math.sin(Date.now() * 0.006) + 1) / 2; // 0 to 1 value
+    //     (keyboardCursorMesh.material as THREE.MeshBasicMaterial).opacity = 0.3 +
+    //         keyboardPulseFactor * 0.5; // Higher base opacity
 
-        // Make sure the cursor is visible by default (unless player is disabled)
-        if (!keyboardCursorMesh.visible && !gameState?.disablePlayer) {
-            keyboardCursorMesh.visible = true;
-        }
-    }
+    //     // // Make sure the cursor is visible by default (unless player is disabled)
+    //     // if (!keyboardCursorMesh.visible && !gameState?.disablePlayer) {
+    //         keyboardCursorMesh.visible = true;
+    //     // }
+    // }
 
     renderState.renderer.render(renderState.scene, renderState.camera);
 }

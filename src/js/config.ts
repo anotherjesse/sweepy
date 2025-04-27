@@ -22,3 +22,5 @@ export const ZOOM_MIN = 10;
 export const ZOOM_MAX = 50;
 export const ZOOM_IN_FACTOR = 1.1;
 export const ZOOM_OUT_FACTOR = 0.9;
+export const GAMEPAD_THROTTLE_MS = 150; // Time between movements in ms
+export const CAMERA_SAVE_INTERVAL = 1000; // Save at most once per second

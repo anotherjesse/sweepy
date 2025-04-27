@@ -1,10 +1,10 @@
 import seedrandom from "seedrandom";
 import SimplexNoise from "simplex-noise";
-import { gamepadState } from "./input/gamepad";
-import { renderState, updateMeshes } from "./gfx/render";
+import {  updateMeshes } from "./gfx/render";
 import { loadState, saveState, updatePreferences } from "./persist";
 import { fade, unfade } from "./gfx/ui";
 import * as config from "./config";
+import { Player } from "./players";
 
 // Game state type
 type GameState = {
@@ -106,16 +106,6 @@ function calculateAdjacentMines() {
     }
 }
 
-// We'll define a type for the function that resets keyboard cursor
-// to avoid circular dependencies
-type KeyboardResetFunction = (x: number, z: number) => void;
-let resetKeyboardCursorFn: KeyboardResetFunction | null = null;
-
-// Function to register the keyboard reset function
-export function registerKeyboardReset(resetFn: KeyboardResetFunction) {
-    resetKeyboardCursorFn = resetFn;
-}
-
 export const startTeleport = () => {
     gameState.disablePlayer = true;
     fade();
@@ -125,51 +115,53 @@ export const startTeleport = () => {
 };
 
 export const finishTeleport = () => {
-    // Move the player to a random location on the board
-    // Choose a new random position within a reasonable range (not the entire board)
-    const viewRange = 100; // A more reasonable view range
-    const randomX = Math.floor(Math.random() * (config.W - viewRange));
-    const randomZ = Math.floor(Math.random() * (config.H - viewRange));
-    const newCenterX = randomX + viewRange / 2;
-    const newCenterZ = randomZ + viewRange / 2;
+    // FIXME(ja): move the player to a random location on the board
+    
+    // // Move the player to a random location on the board
+    // // Choose a new random position within a reasonable range (not the entire board)
+    // const viewRange = 100; // A more reasonable view range
+    // const randomX = Math.floor(Math.random() * (config.W - viewRange));
+    // const randomZ = Math.floor(Math.random() * (config.H - viewRange));
+    // const newCenterX = randomX + viewRange / 2;
+    // const newCenterZ = randomZ + viewRange / 2;
 
-    // Ensure we have integer coordinates for the cursors
-    const newCenterXInt = Math.floor(newCenterX);
-    const newCenterZInt = Math.floor(newCenterZ);
+    // // Ensure we have integer coordinates for the cursors
+    // const newCenterXInt = Math.floor(newCenterX);
+    // const newCenterZInt = Math.floor(newCenterZ);
 
-    // Move both camera position and target coherently
-    renderState.camera.position.set(
-        newCenterX,
-        renderState.camera.position.y,
-        newCenterZ,
-    );
-    renderState.controls.target.set(
-        newCenterX,
-        0,
-        newCenterZ,
-    );
-    // // Set zoom using the centralized zoom function
-    // setZoom(20);
+    // // Move both camera position and target coherently
+    // renderState.camera.position.set(
+    //     newCenterX,
+    //     renderState.camera.position.y,
+    //     newCenterZ,
+    // );
+    // renderState.controls.target.set(
+    //     newCenterX,
+    //     0,
+    //     newCenterZ,
+    // );
+    // // // Set zoom using the centralized zoom function
+    // // setZoom(20);
 
-    // Update controls
-    renderState.controls.update();
+    // // Update controls
+    // renderState.controls.update();
 
-    // Move gamepad cursor to new position
-    gamepadState.gamepadCursorX = newCenterXInt;
-    gamepadState.gamepadCursorZ = newCenterZInt;
-    gamepadState.gamepadCursorIndex = newCenterXInt + newCenterZInt * config.W;
+    // // Move gamepad cursor to new position
+    // gamepadState.gamepadCursorX = newCenterXInt;
+    // gamepadState.gamepadCursorZ = newCenterZInt;
+    // gamepadState.gamepadCursorIndex = newCenterXInt + newCenterZInt * config.W;
 
-    // Set the hovered cell index to match the new position
-    gameState.hoveredCellIndex = newCenterXInt + newCenterZInt * config.W;
+    // // Set the hovered cell index to match the new position
+    // gameState.hoveredCellIndex = newCenterXInt + newCenterZInt * config.W;
 
-    // Move keyboard cursor to new position if the reset function is registered
-    if (resetKeyboardCursorFn) {
-        resetKeyboardCursorFn(newCenterXInt, newCenterZInt);
-    }
+    // // Move keyboard cursor to new position if the reset function is registered
+    // if (resetKeyboardCursorFn) {
+    //     resetKeyboardCursorFn(newCenterXInt, newCenterZInt);
+    // }
 
-    console.log(
-        `Reset positions - Camera: (${newCenterX}, ${newCenterZ}), Cursor: (${newCenterXInt}, ${newCenterZInt})`,
-    );
+    // console.log(
+    //     `Reset positions - Camera: (${newCenterX}, ${newCenterZ}), Cursor: (${newCenterXInt}, ${newCenterZInt})`,
+    // );
 
     unfade();
 
@@ -178,10 +170,12 @@ export const finishTeleport = () => {
 
 // Reveal a cell
 export function revealCell(
-    index: number,
+    player: Player,
 ) {
     const { disablePlayer } = gameState;
     if (disablePlayer) return;
+
+    const index = player.x + player.z * config.W;
 
     const state = states[index];
 
@@ -292,11 +286,13 @@ export function checkForBoxedInMines() {
 }
 
 // Toggle flag on a cell
-export function toggleFlag(index: number) {
+export function toggleFlag(player: Player) {
     const { disablePlayer } = gameState;
     const { REVEALED, FLAGGED } = config.cellStateConstants;
 
     if (disablePlayer) return;
+
+    const index = player.x + player.z * config.W;
 
     if (states[index] & REVEALED) return;
 

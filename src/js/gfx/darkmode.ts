@@ -47,3 +47,12 @@ export async function setupColorScheme() {
         },
     );
 }
+
+export function toggleDarkMode() {
+    const isDarkMode = document.body.classList.toggle("dark-mode");
+    console.log(`Dark mode ${isDarkMode ? "enabled" : "disabled"}`);
+
+    updatePreferences({
+        darkMode: isDarkMode,
+    });
+}

@@ -1,6 +1,9 @@
 import * as config from "./config";
 import { revealCell, toggleFlag } from "./game";
 import { zoomBy } from "./gfx/camera";
+import { updateMeshes } from "./gfx/render";
+import { updateJoinInstructions } from "./gfx/ui";
+
 
 export type Actions = {
     dX?: number;
@@ -50,8 +53,8 @@ export function addPlayer(
         mesh: undefined,
     };
     
-    // Update instructions overlay when a player is added
-    import("./gfx/ui").then(ui => ui.updateJoinInstructions());
+    updateMeshes();
+    updateJoinInstructions();
     
     return players[id];
 }

@@ -18,7 +18,7 @@ import { players } from "../players";
 /*  Constants & internal state                                        */
 /* ------------------------------------------------------------------ */
 
-const POS_LERP   = 0.12;           // How quickly we chase the centroid
+const POS_LERP   = 0.01;           // How quickly we chase the centroid
 const ZOOM_LERP  = 0.15;           // How quickly we chase the target zoom
 const PAD        = 2;              // Extra cells around the bounding box
 const ZOOM_EPS   = 1e-3;           // Threshold before we call updateProjection

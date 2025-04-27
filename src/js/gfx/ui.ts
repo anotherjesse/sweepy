@@ -98,3 +98,10 @@ export function clearHoverInfo() {
         infoBox.innerHTML = "";
     }
 }
+
+export function toggleUI() {
+    const ui = document.getElementById("ui");
+    if (ui) {
+        ui.classList.toggle("visible");
+    }
+}

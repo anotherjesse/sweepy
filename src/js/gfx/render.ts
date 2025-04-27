@@ -5,6 +5,7 @@ import * as config from "../config";
 import { connectCamera, updateCamera } from "./camera";
 
 let cellMesh: THREE.InstancedMesh | null = null;
+let stateTexture: THREE.DataTexture | null = null;
 const scene = new THREE.Scene();
 const renderer = new THREE.WebGLRenderer({ antialias: false });
 scene.background = new THREE.Color(0x333333);
@@ -16,7 +17,7 @@ window.addEventListener("resize", handleResize);
 
 // Sprite sheet constants - will be used in shader
 const SPRITE_CELL_WIDTH = 1 / 4;
-const SPRITE_CELL_HEIGHT = 1 / 3; // 1/4 (for 4x4 sprite atlas)
+const SPRITE_CELL_HEIGHT = 1 / 3; // 1/3 (for 4x3 sprite atlas)
 
 // Load sprite atlas
 function loadSpriteAtlas(): THREE.Texture {
@@ -25,17 +26,6 @@ function loadSpriteAtlas(): THREE.Texture {
         texture.magFilter = THREE.NearestFilter;
         texture.minFilter = THREE.NearestFilter;
     });
-}
-
-
-// This type assertion is necessary because THREE.js typings are sometimes incomplete
-// BufferAttribute and InterleavedBufferAttribute both have array, but the union type
-// in THREE.js doesn't capture this correctly
-const uvAttribute = cellMesh.geometry.getAttribute("aUV");
-const uvArray = (uvAttribute as THREE.BufferAttribute).array as number[];
-function updateUV(i: number, u: number, v: number) {
-    uvArray[i * 2] = u;
-    uvArray[i * 2 + 1] = v;
 }
 
 // Initialize meshes
@@ -59,15 +49,12 @@ export function initMeshes() {
 
     // Create custom attributes for the instanced mesh
     const offsets = new Float32Array(config.N * 2); // x, z offsets
-    const uvs = new Float32Array(config.N * 2); // texture atlas offsets
 
-    // Initialize all cells as hidden (use empty tile at position (2,2) in atlas)
+    // Initialize all cell offsets
     for (let i = 0; i < config.N; i++) {
         const x = i % config.W, z = Math.floor(i / config.W);
         offsets[i * 2] = x;
         offsets[i * 2 + 1] = z;
-        uvs[i * 2] = 2; // Empty tile (col 3, 0-indexed)
-        uvs[i * 2 + 1] = 1; // Bottom row (row 3, 0-indexed)
     }
 
     // Add attributes to geometry
@@ -75,32 +62,83 @@ export function initMeshes() {
         "aOffset",
         new THREE.InstancedBufferAttribute(offsets, 2),
     );
-    cellGeo.setAttribute("aUV", new THREE.InstancedBufferAttribute(uvs, 2));
+
+    // Create DataTexture from states array
+    stateTexture = new THREE.DataTexture(
+        states,
+        config.W, config.H,
+        THREE.LuminanceFormat,
+        THREE.UnsignedByteType
+    );
+    stateTexture.magFilter = THREE.NearestFilter;
+    stateTexture.minFilter = THREE.NearestFilter;
+    stateTexture.needsUpdate = true;
 
     // Create shader material for the sprite sheet
     const cellMat = new THREE.ShaderMaterial({
         uniforms: {
             atlas: { value: spriteTexture },
+            stateTex: { value: stateTexture },
+        },
+        defines: {
+            GRID_W: config.W.toFixed(1),
+            GRID_H: config.H.toFixed(1),
+            TILE_COLS: '4.0',
+            TILE_ROWS: '3.0'
         },
         vertexShader: `
     attribute vec2 aOffset;
-    attribute vec2 aUV;
     varying vec2 vUv;
+    
+    uniform sampler2D stateTex;
+    uniform sampler2D atlas;
+    
     void main() {
-      // Use the built-in uv attribute from THREE.PlaneGeometry
-      // Map to 4x4 grid (SPRITE_COLS=4, SPRITE_ROWS=4)
-      vUv = vec2(aUV.x * ${SPRITE_CELL_WIDTH} + uv.x * ${SPRITE_CELL_WIDTH}, 
-                 aUV.y * ${SPRITE_CELL_HEIGHT} + uv.y * ${SPRITE_CELL_HEIGHT});
-      vec3 pos = position;
-      // Position cells in XZ plane
-      pos.x += aOffset.x;
-      pos.z += aOffset.y;
+      // 1) figure out which texel (cell) we are
+      vec2 texCoord = (aOffset + 0.5) / vec2(GRID_W, GRID_H);
+      float rawState = texture2D(stateTex, texCoord).r * 255.0;
+      
+      // 2) decode bits
+      bool revealed = mod(rawState, 32.0) >= 16.0;
+      bool flagged  = mod(floor(rawState / 32.0), 2.0) > 0.5;
+      bool mine     = mod(floor(rawState / 64.0), 2.0) > 0.5;
+      float adj     = mod(rawState, 16.0);
+      
+      // 3) pick your atlas cell (u,v) based on that
+      vec2 tileUV;
+      if (!revealed) {
+        if (flagged) {
+          tileUV = vec2(0.0, 0.0);    // flag at col=0,row=0
+        } else {
+          tileUV = vec2(3.0, 0.0);    // hidden tile
+        }
+      } else if (mine) {
+        tileUV = vec2(1.0, 0.0);      // exploded mine at col=1,row=0
+      } else {
+        // numbers 1–8: pick row/col
+        if (adj == 0.0) {
+          tileUV = vec2(3.0, 0.0);    // empty revealed cell
+        } else if (adj <= 4.0) {
+          tileUV = vec2(adj - 1.0, 2.0);  // numbers 1-4 at row 2
+        } else {
+          tileUV = vec2(adj - 5.0, 1.0);  // numbers 5-8 at row 1
+        }
+      }
+      
+      // compute final UV into atlas
+      vec2 baseUv  = uv; // the built-in 0–1 range within one tile
+      vec2 tileSz  = vec2(1.0/TILE_COLS, 1.0/TILE_ROWS);
+      vUv = tileUV * tileSz + baseUv * tileSz;
+      
+      // standard instancing logic
+      vec3 pos = position + vec3(aOffset.x, 0.0, aOffset.y);
       gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
     }
     `,
         fragmentShader: `
     uniform sampler2D atlas;
     varying vec2 vUv;
+    
     void main() {
       gl_FragColor = texture2D(atlas, vUv);
     }
@@ -139,58 +177,14 @@ export function initMeshes() {
 export function updateMeshes() {
     console.log("Updating meshes with states array");
 
-    if (!cellMesh) {
+    if (!cellMesh || !stateTexture) {
         console.error("Meshes not initialized");
         return;
     }
 
-    const { NUMBER_MASK, REVEALED, FLAGGED, MINE, FINISHED } =
-        config.cellStateConstants;
-    const { debugMode } = gameState;
-
-
-    for (let i = 0; i < config.N; i++) {
-        const state = states[i];
-
-        // Update UV coordinates based on cell state
-        if ((state & REVEALED) || debugMode) {
-            if (state & MINE) {
-                // Bomb sprite at position (2,0) in the atlas (bottom row, third column)
-                updateUV(i, 1, 0);
-            } else {
-                // Number tiles (1-8) in first two rows
-                const adjacentMines = state & NUMBER_MASK;
-                if (adjacentMines === 0) {
-                    // Empty revealed cell - using empty tile at (3,2)
-                    updateUV(i, 3, 0);
-                } else if (adjacentMines <= 4) {
-                    // Numbers 1-4 in top row (columns 0-3)
-                    updateUV(i, adjacentMines - 1, 2); // 0-based index (0,1,2,3)
-                } else {
-                    // Numbers 5-8 in middle row (columns 0-3)
-                    updateUV(i, adjacentMines - 5, 1); // 0-based index (0,1,2,3)
-                }
-            }
-        } else {
-            // Unrevealed tile (hidden) - using the dark gray cell at (3,0)
-            updateUV(i, 3, 0);
-
-            // Handle flags (using the sprite atlas)
-            if (state & FLAGGED) {
-                // Red flag at (0,2)
-                updateUV(i, 0, 0);
-            }
-
-            // Handle finished mines (completely boxed in)
-            // Blue flag sprite to the right of red flag (1,1)
-            if ((state & MINE) && (state & FINISHED)) {
-                updateUV(i, 1, 0);
-            }
-        }
-    }
-
-    // Update UV attribute
-    uvAttribute.needsUpdate = true;
+    // All we need to do is mark the texture as needing an update
+    // The shader will automatically read the new state
+    stateTexture.needsUpdate = true;
     console.log("Meshes updated successfully");
 }
 

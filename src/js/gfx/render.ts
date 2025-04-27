@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { states } from "../game";
 import * as config from "../config";
 import { initCamera, updateCamera, camera } from "./camera";
+import { players } from "../players";
 
 let cellMesh: THREE.InstancedMesh | null = null;
 let stateTexture: THREE.DataTexture | null = null;
@@ -45,6 +46,9 @@ export function initMeshes() {
   // Make sure board is flat on XZ plane
   boardGeo.rotateX(-Math.PI / 2);
   (window as any).boardGeo = boardGeo;
+  
+  // Initialize player meshes
+  initPlayerMeshes();
 
   // Create a plane geometry for cells - ensure they're square
   const cellGeo = new THREE.PlaneGeometry(1, 1);
@@ -194,7 +198,51 @@ export function updateMeshes() {
   // All we need to do is mark the texture as needing an update
   // The shader will automatically read the new state
   stateTexture.needsUpdate = true;
+  
+  // Update player meshes
+  updatePlayerMeshes();
+  
   console.log("Meshes updated successfully");
+}
+
+// Initialize player meshes
+function initPlayerMeshes() {
+  // Create player meshes for all existing players
+  Object.values(players).forEach(player => {
+    if (!player.mesh) {
+      createPlayerMesh(player);
+    }
+  });
+}
+
+// Create a mesh for a player
+function createPlayerMesh(player: any) {
+  // Create a simple cube as player avatar
+  const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+  const material = new THREE.MeshBasicMaterial({ color: player.color });
+  const mesh = new THREE.Mesh(geometry, material);
+  
+  // Position at player's coordinates (slightly above ground)
+  mesh.position.set(player.x, 0.4, player.z);
+  
+  // Add to scene
+  scene.add(mesh);
+  
+  // Assign mesh to player
+  player.mesh = mesh;
+}
+
+// Update player meshes
+function updatePlayerMeshes() {
+  // Check for new players and create meshes for them
+  Object.values(players).forEach(player => {
+    if (!player.mesh) {
+      createPlayerMesh(player);
+    } else {
+      // Update existing mesh position
+      player.mesh.position.set(player.x, 0.4, player.z);
+    }
+  });
 }
 
 export function animate(inputPoll: () => void) {

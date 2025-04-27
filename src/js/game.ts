@@ -68,6 +68,7 @@ export function generateBoard(
 
     // Update the mesh display
     updateMeshes();
+    console.log("Board generated, meshes updated");
 
     // Save the current seed and game state
     saveGameData(seed);

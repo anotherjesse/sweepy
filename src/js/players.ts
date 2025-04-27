@@ -57,6 +57,16 @@ export function addPlayer(
 }
 
 export function removePlayer({ id }: { id: string }) {
+    const player = players[id];
+    
+    // Remove the mesh from the scene if it exists
+    if (player && player.mesh) {
+        const scene = player.mesh.parent;
+        if (scene) {
+            scene.remove(player.mesh);
+        }
+    }
+    
     delete players[id];
     
     // Update instructions overlay when a player is removed
@@ -82,12 +92,21 @@ export function pollPlayers() {
 
 function pollPlayer(player: Player) {
     const actions = player.poll();
+    let hasMovement = false;
+    
     if (actions.dX) {
         player.x += actions.dX;
+        hasMovement = true;
     }
     if (actions.dZ) {
         player.z += actions.dZ;
+        hasMovement = true;
     }
+    
+    // Clamp player position to grid bounds
+    player.x = Math.max(0, Math.min(config.W - 1, player.x));
+    player.z = Math.max(0, Math.min(config.H - 1, player.z));
+    
     if (actions.revealCell) {
         revealCell(player);
     }
@@ -97,8 +116,9 @@ function pollPlayer(player: Player) {
     if (actions.zoomBy) {
         zoomBy(actions.zoomBy);
     }
-    // FIXME(ja): deal with the from input ...
-    // if (player.mesh) {
-    //     player.mesh.position.set(player.x, 0, player.z);
-    // }
+    
+    // Update player mesh position if it exists
+    if (player.mesh) {
+        player.mesh.position.set(player.x, 0, player.z);
+    }
 }

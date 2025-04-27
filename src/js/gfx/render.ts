@@ -1,8 +1,7 @@
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { gameState, states } from "../game";
+import { states } from "../game";
 import * as config from "../config";
-import { connectCamera, updateCamera } from "./camera";
+import { initCamera, updateCamera, camera } from "./camera";
 
 let cellMesh: THREE.InstancedMesh | null = null;
 let stateTexture: THREE.DataTexture | null = null;
@@ -12,81 +11,91 @@ scene.background = new THREE.Color(0x333333);
 renderer.setPixelRatio(2);
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
-const { camera, controls } = connectCamera(renderer.domElement);
+initCamera(renderer);
 window.addEventListener("resize", handleResize);
 
+export function handleResize() {
+  const h = window.innerHeight, w = window.innerWidth;
+  camera.left = -w / 2;
+  camera.right = w / 2;
+  camera.top = h / 2;
+  camera.bottom = -h / 2;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
 // Sprite sheet constants - will be used in shader
 const SPRITE_CELL_WIDTH = 1 / 4;
 const SPRITE_CELL_HEIGHT = 1 / 3; // 1/3 (for 4x3 sprite atlas)
 
 // Load sprite atlas
 function loadSpriteAtlas(): THREE.Texture {
-    const textureLoader = new THREE.TextureLoader();
-    return textureLoader.load("/new.gif", (texture) => {
-        texture.magFilter = THREE.NearestFilter;
-        texture.minFilter = THREE.NearestFilter;
-    });
+  const textureLoader = new THREE.TextureLoader();
+  return textureLoader.load("/new.gif", (texture) => {
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+  });
 }
 
 // Initialize meshes
 export function initMeshes() {
-    console.log("Initializing meshes");
+  console.log("Initializing meshes");
 
-    // Create a checkerboard background (optional)
-    const boardGeo = new THREE.PlaneGeometry(config.W, config.H);
-    // Make sure board is flat on XZ plane
-    boardGeo.rotateX(-Math.PI / 2);
-    (window as any).boardGeo = boardGeo;
+  // Create a checkerboard background (optional)
+  const boardGeo = new THREE.PlaneGeometry(config.W, config.H);
+  // Make sure board is flat on XZ plane
+  boardGeo.rotateX(-Math.PI / 2);
+  (window as any).boardGeo = boardGeo;
 
-    // Create a plane geometry for cells - ensure they're square
-    const cellGeo = new THREE.PlaneGeometry(1, 1);
-    // Make sure cells are flat on XZ plane
-    cellGeo.translate(0.5, -0.5, 0);
-    cellGeo.rotateX(-Math.PI / 2);
+  // Create a plane geometry for cells - ensure they're square
+  const cellGeo = new THREE.PlaneGeometry(1, 1);
+  // Make sure cells are flat on XZ plane
+  cellGeo.translate(0.5, -0.5, 0);
+  cellGeo.rotateX(-Math.PI / 2);
 
-    // Load the sprite texture
-    const spriteTexture = loadSpriteAtlas();
+  // Load the sprite texture
+  const spriteTexture = loadSpriteAtlas();
 
-    // Create custom attributes for the instanced mesh
-    const offsets = new Float32Array(config.N * 2); // x, z offsets
+  // Create custom attributes for the instanced mesh
+  const offsets = new Float32Array(config.N * 2); // x, z offsets
 
-    // Initialize all cell offsets
-    for (let i = 0; i < config.N; i++) {
-        const x = i % config.W, z = Math.floor(i / config.W);
-        offsets[i * 2] = x;
-        offsets[i * 2 + 1] = z;
-    }
+  // Initialize all cell offsets
+  for (let i = 0; i < config.N; i++) {
+    const x = i % config.W, z = Math.floor(i / config.W);
+    offsets[i * 2] = x;
+    offsets[i * 2 + 1] = z;
+  }
 
-    // Add attributes to geometry
-    cellGeo.setAttribute(
-        "aOffset",
-        new THREE.InstancedBufferAttribute(offsets, 2),
-    );
+  // Add attributes to geometry
+  cellGeo.setAttribute(
+    "aOffset",
+    new THREE.InstancedBufferAttribute(offsets, 2),
+  );
 
-    // Create DataTexture from states array
-    stateTexture = new THREE.DataTexture(
-        states,
-        config.W, config.H,
-        THREE.LuminanceFormat,
-        THREE.UnsignedByteType
-    );
-    stateTexture.magFilter = THREE.NearestFilter;
-    stateTexture.minFilter = THREE.NearestFilter;
-    stateTexture.needsUpdate = true;
+  // Create DataTexture from states array
+  stateTexture = new THREE.DataTexture(
+    states,
+    config.W,
+    config.H,
+    THREE.LuminanceFormat,
+    THREE.UnsignedByteType,
+  );
+  stateTexture.magFilter = THREE.NearestFilter;
+  stateTexture.minFilter = THREE.NearestFilter;
+  stateTexture.needsUpdate = true;
 
-    // Create shader material for the sprite sheet
-    const cellMat = new THREE.ShaderMaterial({
-        uniforms: {
-            atlas: { value: spriteTexture },
-            stateTex: { value: stateTexture },
-        },
-        defines: {
-            GRID_W: config.W.toFixed(1),
-            GRID_H: config.H.toFixed(1),
-            TILE_COLS: '4.0',
-            TILE_ROWS: '3.0'
-        },
-        vertexShader: `
+  // Create shader material for the sprite sheet
+  const cellMat = new THREE.ShaderMaterial({
+    uniforms: {
+      atlas: { value: spriteTexture },
+      stateTex: { value: stateTexture },
+    },
+    defines: {
+      GRID_W: config.W.toFixed(1),
+      GRID_H: config.H.toFixed(1),
+      TILE_COLS: "4.0",
+      TILE_ROWS: "3.0",
+    },
+    vertexShader: `
     attribute vec2 aOffset;
     varying vec2 vUv;
     
@@ -135,7 +144,7 @@ export function initMeshes() {
       gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
     }
     `,
-        fragmentShader: `
+    fragmentShader: `
     uniform sampler2D atlas;
     varying vec2 vUv;
     
@@ -143,96 +152,57 @@ export function initMeshes() {
       gl_FragColor = texture2D(atlas, vUv);
     }
     `,
-        side: THREE.DoubleSide,
-    });
+    side: THREE.DoubleSide,
+  });
 
-    // Create instanced mesh for cells
-    const newCellMesh = new THREE.InstancedMesh(cellGeo, cellMat, config.N);
-    newCellMesh.frustumCulled = true; // Only render visible cells
+  // Create instanced mesh for cells
+  const newCellMesh = new THREE.InstancedMesh(cellGeo, cellMat, config.N);
+  newCellMesh.frustumCulled = true; // Only render visible cells
 
-    // Update instance matrices
-    const dummy = new THREE.Object3D();
-    for (let i = 0; i < config.N; i++) {
-        const x = i % config.W, z = Math.floor(i / config.W);
-        dummy.position.set(x, 0, z);
-        dummy.updateMatrix();
-        newCellMesh.setMatrixAt(i, dummy.matrix);
-    }
-    newCellMesh.instanceMatrix.needsUpdate = true;
+  // Update instance matrices
+  const dummy = new THREE.Object3D();
+  for (let i = 0; i < config.N; i++) {
+    const x = i % config.W, z = Math.floor(i / config.W);
+    dummy.position.set(x, 0, z);
+    dummy.updateMatrix();
+    newCellMesh.setMatrixAt(i, dummy.matrix);
+  }
+  newCellMesh.instanceMatrix.needsUpdate = true;
 
-    // Manually compute and set bounding box for proper frustum culling
-    newCellMesh.geometry.boundingBox = new THREE.Box3(
-        new THREE.Vector3(0, -0.1, 0),
-        new THREE.Vector3(config.W, 0.1, config.H),
-    );
-    newCellMesh.geometry.boundingSphere = new THREE.Sphere(
-        new THREE.Vector3(config.W / 2, 0, config.H / 2),
-        Math.sqrt(config.W * config.W + config.H * config.H) / 2,
-    );
+  // Manually compute and set bounding box for proper frustum culling
+  newCellMesh.geometry.boundingBox = new THREE.Box3(
+    new THREE.Vector3(0, -0.1, 0),
+    new THREE.Vector3(config.W, 0.1, config.H),
+  );
+  newCellMesh.geometry.boundingSphere = new THREE.Sphere(
+    new THREE.Vector3(config.W / 2, 0, config.H / 2),
+    Math.sqrt(config.W * config.W + config.H * config.H) / 2,
+  );
 
-    scene.add(newCellMesh);
-    cellMesh = newCellMesh;
+  scene.add(newCellMesh);
+  cellMesh = newCellMesh;
 }
 
 export function updateMeshes() {
-    console.log("Updating meshes with states array");
+  console.log("Updating meshes with states array");
 
-    if (!cellMesh || !stateTexture) {
-        console.error("Meshes not initialized");
-        return;
-    }
+  if (!cellMesh || !stateTexture) {
+    console.error("Meshes not initialized");
+    return;
+  }
 
-    // All we need to do is mark the texture as needing an update
-    // The shader will automatically read the new state
-    stateTexture.needsUpdate = true;
-    console.log("Meshes updated successfully");
+  // All we need to do is mark the texture as needing an update
+  // The shader will automatically read the new state
+  stateTexture.needsUpdate = true;
+  console.log("Meshes updated successfully");
 }
 
-export function handleResize() {
-    const h = window.innerHeight, w = window.innerWidth;
-    camera.left = -w / 2;
-    camera.right = w / 2;
-    camera.top = h / 2;
-    camera.bottom = -h / 2;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-}
+export function animate(inputPoll: () => void) {
+  requestAnimationFrame(() => animate(inputPoll));
 
-export function animate(inputPollFunction: () => void) {
-    requestAnimationFrame(() => animate(inputPollFunction));
-    controls.update();
-    inputPollFunction();
-    updateCamera();
+  inputPoll(); // players move
+  updateCamera(); // ⬅ NEW: make the camera chase them
+  // maybeSaveCameraState();  // ⬅ optional: persist ~1×/s
 
-    // // Add pulsing animation to gamepad cursor
-    // const { gamepadCursorMesh } = gamepadState;
-    // if (gamepadCursorMesh && gamepadCursorMesh.visible) {
-    //     // Pulse the opacity between 0.2 and 0.7
-    //     const pulseFactor = (Math.sin(Date.now() * 0.005) + 1) / 2; // 0 to 1 value
-    //     (gamepadCursorMesh.material as THREE.MeshBasicMaterial).opacity = 0.2 +
-    //         pulseFactor * 0.5;
-    // }
-
-    // // Update keyboard cursor position
-    // const { keyboardCursorMesh } = renderState;
-    // if (keyboardCursorMesh && keyboardState) {
-    //     // Ensure keyboard cursor is correctly positioned
-    //     keyboardCursorMesh.position.set(
-    //         keyboardState.cursorX,
-    //         0.15, // Keep consistent with initialization
-    //         keyboardState.cursorZ,
-    //     );
-
-    //     // Add pulsing animation to keyboard cursor with different timing
-    //     const keyboardPulseFactor = (Math.sin(Date.now() * 0.006) + 1) / 2; // 0 to 1 value
-    //     (keyboardCursorMesh.material as THREE.MeshBasicMaterial).opacity = 0.3 +
-    //         keyboardPulseFactor * 0.5; // Higher base opacity
-
-    //     // // Make sure the cursor is visible by default (unless player is disabled)
-    //     // if (!keyboardCursorMesh.visible && !gameState?.disablePlayer) {
-    //         keyboardCursorMesh.visible = true;
-    //     // }
-    // }
-
-    renderer.render(scene, camera);
+  renderer.render(scene, camera);
 }

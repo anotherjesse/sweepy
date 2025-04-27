@@ -1,6 +1,6 @@
 import * as config from "./config";
 import { revealCell, toggleFlag } from "./game";
-import { requestZoomBy } from "./gfx/camera";
+import { zoomBy } from "./gfx/camera";
 
 export type Actions = {
     dX?: number;
@@ -82,7 +82,7 @@ function pollPlayer(player: Player) {
         toggleFlag(player);
     }
     if (actions.zoomBy) {
-        requestZoomBy(actions.zoomBy);
+        zoomBy(actions.zoomBy);
     }
     // FIXME(ja): deal with the from input ...
     // if (player.mesh) {

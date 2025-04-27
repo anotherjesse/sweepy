@@ -44,7 +44,7 @@ export async function initRenderer() {
 // Load sprite atlas
 function loadSpriteAtlas(): THREE.Texture {
     const textureLoader = new THREE.TextureLoader();
-    return textureLoader.load("/new.gif", (texture) => {
+    return textureLoader.load("./new.gif", (texture) => {
         texture.magFilter = THREE.NearestFilter;
         texture.minFilter = THREE.NearestFilter;
     });

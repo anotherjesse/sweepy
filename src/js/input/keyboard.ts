@@ -13,6 +13,11 @@ const activeKeys = new Set<string>();
 let player: Player | undefined;
 let actions: Actions = {};
 
+export function initKeyboard() {
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", onKeyUp);
+}
+
 // Handler for keydown events
 export function onKeyDown(event: KeyboardEvent) {
   // Handle UI toggle keys regardless of player state

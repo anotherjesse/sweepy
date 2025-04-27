@@ -2,41 +2,21 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { gameState, states } from "../game";
 import * as config from "../config";
-import { camera, initCamera, saveCameraState } from "./camera";
+import { connectCamera, updateCamera } from "./camera";
 
-// Render state type
-export type RenderState = {
-    scene: THREE.Scene;
-    camera: THREE.OrthographicCamera;
-    renderer: THREE.WebGLRenderer;
-    controls: OrbitControls;
-    cellMesh: THREE.InstancedMesh | null;
-    keyboardCursorMesh: THREE.Mesh | null;
-};
+let cellMesh: THREE.InstancedMesh | null = null;
+const scene = new THREE.Scene();
+const renderer = new THREE.WebGLRenderer({ antialias: false });
+scene.background = new THREE.Color(0x333333);
+renderer.setPixelRatio(2);
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+const { camera, controls } = connectCamera(renderer.domElement);
+window.addEventListener("resize", handleResize);
 
 // Sprite sheet constants - will be used in shader
 const SPRITE_CELL_WIDTH = 1 / 4;
 const SPRITE_CELL_HEIGHT = 1 / 3; // 1/4 (for 4x4 sprite atlas)
-
-
-// Create render state object
-export const renderState: RenderState = {
-    scene: new THREE.Scene(),
-    camera,
-    renderer: new THREE.WebGLRenderer({ antialias: false }),
-    controls: null!,
-    cellMesh: null,
-    keyboardCursorMesh: null,
-};
-
-// Initialize the renderer
-export async function initRenderer() {
-    renderState.scene.background = new THREE.Color(0x333333);
-    renderState.renderer.setPixelRatio(2);
-    renderState.renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderState.renderer.domElement);
-    await initCamera();
-}
 
 // Load sprite atlas
 function loadSpriteAtlas(): THREE.Texture {
@@ -47,22 +27,20 @@ function loadSpriteAtlas(): THREE.Texture {
     });
 }
 
+
+// This type assertion is necessary because THREE.js typings are sometimes incomplete
+// BufferAttribute and InterleavedBufferAttribute both have array, but the union type
+// in THREE.js doesn't capture this correctly
+const uvAttribute = cellMesh.geometry.getAttribute("aUV");
+const uvArray = (uvAttribute as THREE.BufferAttribute).array as number[];
+function updateUV(i: number, u: number, v: number) {
+    uvArray[i * 2] = u;
+    uvArray[i * 2 + 1] = v;
+}
+
 // Initialize meshes
 export function initMeshes() {
     console.log("Initializing meshes");
-
-    const {
-        scene,
-        cellMesh: currentCellMesh,
-        keyboardCursorMesh: currentKeyboardCursorMesh,
-    } = renderState;
-
-    // Remove any existing meshes
-    if (currentCellMesh) scene.remove(currentCellMesh);
-    // if (gamepadState.gamepadCursorMesh) {
-    //     scene.remove(gamepadState.gamepadCursorMesh);
-    // }
-    // if (currentKeyboardCursorMesh) scene.remove(currentKeyboardCursorMesh);
 
     // Create a checkerboard background (optional)
     const boardGeo = new THREE.PlaneGeometry(config.W, config.H);
@@ -155,70 +133,11 @@ export function initMeshes() {
     );
 
     scene.add(newCellMesh);
-    renderState.cellMesh = newCellMesh;
-
-    // // Create gamepad cursor indicator (a bright highlighted square)
-    // const cursorGeo = new THREE.PlaneGeometry(1, 1);
-    // cursorGeo.translate(0.5, -0.45, 0); // Slightly above cells
-    // cursorGeo.rotateX(-Math.PI / 2);
-
-    // const gamepadCursorMat = new THREE.MeshBasicMaterial({
-    //     color: 0xffff00,
-    //     transparent: true,
-    //     opacity: 0.5,
-    //     wireframe: false,
-    //     side: THREE.DoubleSide,
-    // });
-
-    // const newGamepadCursorMesh = new THREE.Mesh(cursorGeo, gamepadCursorMat);
-    // newGamepadCursorMesh.position.set(
-    //     gamepadState.gamepadCursorX,
-    //     0.1,
-    //     gamepadState.gamepadCursorZ,
-    // );
-    // newGamepadCursorMesh.visible = gamepadState.hasGamepad;
-    // scene.add(newGamepadCursorMesh);
-    // gamepadState.gamepadCursorMesh = newGamepadCursorMesh;
-
-    // // Create keyboard cursor indicator (a bright highlighted square with different color)
-    // const keyboardCursorMat = new THREE.MeshBasicMaterial({
-    //     color: 0x00ffff, // Cyan color for keyboard cursor
-    //     transparent: true,
-    //     opacity: 0.7, // Make it more visible
-    //     wireframe: false,
-    //     side: THREE.DoubleSide,
-    // });
-
-    // // Create a slightly larger cursor to make it more visible
-    // const keyboardCursorGeo = new THREE.PlaneGeometry(1.05, 1.05);
-    // keyboardCursorGeo.translate(0.5, -0.4, 0); // Slightly above cells and gamepad cursor
-    // keyboardCursorGeo.rotateX(-Math.PI / 2);
-
-    // const keyboardCursorMesh = new THREE.Mesh(
-    //     keyboardCursorGeo,
-    //     keyboardCursorMat,
-    // );
-
-    // // // Initialize keyboard cursor at center of the board or at current keyboard position
-    // // if (keyboardState) {
-    // //     keyboardCursorMesh.position.set(
-    // //         keyboardState.cursorX,
-    // //         0.15, // Slightly higher than gamepad cursor
-    // //         keyboardState.cursorZ,
-    // //     );
-    // // } else {
-    // //     keyboardCursorMesh.position.set(config.W / 2, 0.15, config.H / 2);
-    // // }
-
-    // // keyboardCursorMesh.visible = true;
-
-    // scene.add(keyboardCursorMesh);
-    // renderState.keyboardCursorMesh = keyboardCursorMesh;
+    cellMesh = newCellMesh;
 }
 
 export function updateMeshes() {
     console.log("Updating meshes with states array");
-    const { cellMesh } = renderState;
 
     if (!cellMesh) {
         console.error("Meshes not initialized");
@@ -228,18 +147,7 @@ export function updateMeshes() {
     const { NUMBER_MASK, REVEALED, FLAGGED, MINE, FINISHED } =
         config.cellStateConstants;
     const { debugMode } = gameState;
-    // Get attribute and handle it safely
-    const uvAttribute = cellMesh.geometry.getAttribute("aUV");
 
-    // This type assertion is necessary because THREE.js typings are sometimes incomplete
-    // BufferAttribute and InterleavedBufferAttribute both have array, but the union type
-    // in THREE.js doesn't capture this correctly
-    const uvArray = (uvAttribute as THREE.BufferAttribute).array as number[];
-
-    const updateUV = (i: number, u: number, v: number) => {
-        uvArray[i * 2] = u;
-        uvArray[i * 2 + 1] = v;
-    };
 
     for (let i = 0; i < config.N; i++) {
         const state = states[i];
@@ -288,19 +196,19 @@ export function updateMeshes() {
 
 export function handleResize() {
     const h = window.innerHeight, w = window.innerWidth;
-    renderState.camera.left = -w / 2;
-    renderState.camera.right = w / 2;
-    renderState.camera.top = h / 2;
-    renderState.camera.bottom = -h / 2;
-    renderState.camera.updateProjectionMatrix();
-    renderState.renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.left = -w / 2;
+    camera.right = w / 2;
+    camera.top = h / 2;
+    camera.bottom = -h / 2;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
 export function animate(inputPollFunction: () => void) {
     requestAnimationFrame(() => animate(inputPollFunction));
-    renderState.controls.update();
+    controls.update();
     inputPollFunction();
-    saveCameraState();
+    updateCamera();
 
     // // Add pulsing animation to gamepad cursor
     // const { gamepadCursorMesh } = gamepadState;
@@ -332,5 +240,5 @@ export function animate(inputPollFunction: () => void) {
     //     // }
     // }
 
-    renderState.renderer.render(renderState.scene, renderState.camera);
+    renderer.render(scene, camera);
 }

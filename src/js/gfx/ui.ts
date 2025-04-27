@@ -1,5 +1,6 @@
 import { gameState, generateBoard, states } from "../game";
 import { updateMeshes } from "../gfx/render";
+import { handleResize } from "../gfx/render";
 import * as config from "../config";
 
 let fadeOverlay: HTMLDivElement | null = null;
@@ -31,6 +32,11 @@ export function unfade() {
 
 // Setup UI components
 export function initUI() {
+    // disable right click
+    window.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+    });
+
     const generateButton = document.getElementById("generateButton");
     if (generateButton) {
         generateButton.addEventListener("click", () => {

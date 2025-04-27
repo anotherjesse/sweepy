@@ -49,10 +49,16 @@ export function addPlayer(
         color: color ?? Math.floor(Math.random() * 0xffffff),
         mesh: undefined,
     };
+    
+    // Update instructions overlay when a player is added
+    import("./gfx/ui").then(ui => ui.updateJoinInstructions());
 }
 
 export function removePlayer({ id }: { id: string }) {
     delete players[id];
+    
+    // Update instructions overlay when a player is removed
+    import("./gfx/ui").then(ui => ui.updateJoinInstructions());
 }
 
 export function pollPlayers() {

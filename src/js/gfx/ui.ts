@@ -2,8 +2,10 @@ import { gameState, generateBoard, states } from "../game";
 import { updateMeshes } from "../gfx/render";
 import { handleResize } from "../gfx/render";
 import * as config from "../config";
+import { players } from "../players";
 
 let fadeOverlay: HTMLDivElement | null = null;
+let instructionsOverlay: HTMLDivElement | null = null;
 
 // Function to setup fade overlay
 export function setupFadeOverlay() {
@@ -20,6 +22,28 @@ export function setupFadeOverlay() {
     fadeOverlay.style.transition = "opacity 0.25s ease";
     fadeOverlay.style.zIndex = "9999";
     document.body.appendChild(fadeOverlay);
+    
+    // Create instructions overlay
+    instructionsOverlay = document.createElement("div");
+    instructionsOverlay.id = "instructionsOverlay";
+    instructionsOverlay.style.position = "fixed";
+    instructionsOverlay.style.top = "50%";
+    instructionsOverlay.style.left = "50%";
+    instructionsOverlay.style.transform = "translate(-50%, -50%)";
+    instructionsOverlay.style.color = "white";
+    instructionsOverlay.style.textAlign = "center";
+    instructionsOverlay.style.fontSize = "24px";
+    instructionsOverlay.style.fontFamily = "Arial, sans-serif";
+    instructionsOverlay.style.zIndex = "10000";
+    instructionsOverlay.style.opacity = "0";
+    instructionsOverlay.style.transition = "opacity 0.5s ease";
+    instructionsOverlay.innerHTML = `
+        <h2>Press arrow keys, space, enter, or pair a gamepad to join</h2>
+        <p>WASD/Arrows: Move</p>
+        <p>Space/Enter: Reveal cell</p>
+        <p>F: Place flag</p>
+    `;
+    document.body.appendChild(instructionsOverlay);
 }
 
 export function fade() {
@@ -28,6 +52,22 @@ export function fade() {
 
 export function unfade() {
     if (fadeOverlay) fadeOverlay.style.opacity = "0";
+    updateJoinInstructions();
+}
+
+// Check for players and show/hide instructions
+export function updateJoinInstructions() {
+    const playerCount = Object.keys(players).length;
+    
+    if (playerCount === 0) {
+        // No players, show the fade and instructions
+        if (fadeOverlay) fadeOverlay.style.opacity = "0.8";
+        if (instructionsOverlay) instructionsOverlay.style.opacity = "1";
+    } else {
+        // Players exist, hide the fade and instructions
+        if (fadeOverlay) fadeOverlay.style.opacity = "0";
+        if (instructionsOverlay) instructionsOverlay.style.opacity = "0";
+    }
 }
 
 // Setup UI components
@@ -80,6 +120,9 @@ export function initUI() {
     infoBox.style.fontFamily = "monospace";
     infoBox.style.display = gameState.debugMode ? "block" : "none";
     document.body.appendChild(infoBox);
+    
+    // Initial check for players
+    updateJoinInstructions();
 }
 
 // Function to update hover info for debug mode

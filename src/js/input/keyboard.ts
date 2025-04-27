@@ -5,7 +5,8 @@ import {
 } from "../game";
 import { toggleUI } from "../gfx/ui";
 import { toggleDarkMode } from "../gfx/darkmode";
-import { type Actions, addPlayer, Player, removePlayer } from "../players";
+import { zoomBy } from "../gfx/camera";
+import { type Actions, addPlayer, Player, removePlayer, players } from "../players";
 
 // Active keys tracker
 const activeKeys = new Set<string>();
@@ -39,6 +40,17 @@ export function onKeyDown(event: KeyboardEvent) {
         player = undefined;
       }
       break;
+
+    case "Minus":
+    case "MinusSign":
+      zoomBy(0.95);
+      break;
+
+    case "Equal":
+    case "Plus":
+    case "PlusSign":
+      zoomBy(1.05);
+      break;
   }
 
   // Skip if player is disabled
@@ -58,22 +70,22 @@ export function onKeyDown(event: KeyboardEvent) {
 
     case "KeyW":
     case "ArrowUp":
-      actions.dZ = -1;
+      actions.dZ = 1;
       break;
 
     case "KeyA":
     case "ArrowLeft":
-      actions.dX = -1;
+      actions.dX = 1;
       break;
 
     case "KeyS":
     case "ArrowDown":
-      actions.dZ = 1;
+      actions.dZ = -1;
       break;
 
     case "KeyD":
     case "ArrowRight":
-      actions.dX = 1;
+      actions.dX = -1;
       break;
 
     case "Space":
@@ -86,8 +98,9 @@ export function onKeyDown(event: KeyboardEvent) {
       break;
   }
 
-  if (Object.keys(actions).length > 0) {
-    addPlayer({
+  // Only add keyboard player if it doesn't already exist
+  if (Object.keys(actions).length > 0 && !players["keyboard"]) {
+    player = addPlayer({
       id: "keyboard",
       name: "Keyboard",
       poll: () => {

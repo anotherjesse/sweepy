@@ -35,7 +35,7 @@ export function addPlayer(
         color?: number;
         poll: () => Actions;
     },
-) {
+): Player {
     players[id] = {
         id,
         name,
@@ -52,6 +52,8 @@ export function addPlayer(
     
     // Update instructions overlay when a player is added
     import("./gfx/ui").then(ui => ui.updateJoinInstructions());
+    
+    return players[id];
 }
 
 export function removePlayer({ id }: { id: string }) {
@@ -64,6 +66,17 @@ export function removePlayer({ id }: { id: string }) {
 export function pollPlayers() {
     for (const player of Object.values(players)) {
         pollPlayer(player);
+    }
+    
+    // Update player info if UI is visible
+    const ui = document.getElementById("ui");
+    if (ui && ui.classList.contains("visible")) {
+        // Import dynamically to avoid circular dependencies
+        import("./gfx/ui").then(ui => {
+            if (typeof ui.updatePlayerInfo === "function") {
+                ui.updatePlayerInfo();
+            }
+        });
     }
 }
 

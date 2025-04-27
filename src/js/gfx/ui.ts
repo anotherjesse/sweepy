@@ -152,5 +152,45 @@ export function toggleUI() {
     const ui = document.getElementById("ui");
     if (ui) {
         ui.classList.toggle("visible");
+        
+        // If UI is now visible, show player info
+        if (ui.classList.contains("visible")) {
+            updatePlayerInfo();
+        }
     }
+}
+
+// Create and update player info display
+export function updatePlayerInfo() {
+    // Get or create player info container
+    let playerInfo = document.getElementById("playerInfo");
+    if (!playerInfo) {
+        playerInfo = document.createElement("div");
+        playerInfo.id = "playerInfo";
+        playerInfo.style.position = "absolute";
+        playerInfo.style.top = "10px";
+        playerInfo.style.right = "10px";
+        playerInfo.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+        playerInfo.style.color = "white";
+        playerInfo.style.padding = "10px";
+        playerInfo.style.borderRadius = "5px";
+        playerInfo.style.fontFamily = "monospace";
+        playerInfo.style.zIndex = "10000";
+        document.body.appendChild(playerInfo);
+    }
+    
+    // Generate player list with colored squares
+    const playerList = Object.values(players).map(player => {
+        if (player.disabled) return '';
+        
+        const colorHex = '#' + player.color.toString(16).padStart(6, '0');
+        return `
+            <div style="margin-bottom: 5px; display: flex; align-items: center;">
+                <span style="display: inline-block; width: 15px; height: 15px; background-color: ${colorHex}; margin-right: 8px;"></span>
+                <span>${player.name}: (${Math.floor(player.x)}, ${Math.floor(player.z)})</span>
+            </div>
+        `;
+    }).join('');
+    
+    playerInfo.innerHTML = `<h3 style="margin-top: 0;">Players</h3>${playerList || '<div>No active players</div>'}`;
 }

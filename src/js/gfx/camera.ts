@@ -95,7 +95,7 @@ export async function initCamera(renderer: THREE.WebGLRenderer) {
   };
 
   window.addEventListener("wheel", e =>
-    zoomBy(e.deltaY > 0 ? 0.95 : 1.05), { passive: true }
+    zoomBy(e.deltaY > 0 ? 0.99 : 1.01), { passive: true }
   );
 }
 

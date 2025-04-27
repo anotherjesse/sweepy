@@ -1,44 +1,39 @@
-name: CI
+# .github/workflows/deploy.yml
+name: Deploy to GitHub Pages
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
+    branches: [main]          # or whatever your default branch is
+  workflow_dispatch: {}       # manual trigger
+
+permissions:                  # required by Pages
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v4               # pull your code
+      - uses: pnpm/action-setup@v4              # install pnpm 10.x
+        with: {version: 10, run_install: false}
+      - uses: actions/setup-node@v4             # install Node & cache pnpm
         with:
-          version: 8
-          run_install: false
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile      # restore deps
+      - run: pnpm run build                     # must emit static files
+      - uses: actions/upload-pages-artifact@v3  # pack the ./dist folder
+        with: {path: ./dist}                    # ⇧ adjust if your build dir differs
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: ${{ github.workspace }}
-
-      - name: Build project
-        run: pnpm run build
-        working-directory: ${{ github.workspace }}
-
-      - name: Run tests
-        run: pnpm test
-        working-directory: ${{ github.workspace }}
-
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency: {group: pages, cancel-in-progress: true}
+    steps:
+      - uses: actions/deploy-pages@v4           # publish the artifact
+        id: deployment

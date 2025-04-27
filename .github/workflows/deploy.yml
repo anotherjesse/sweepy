@@ -1,12 +1,11 @@
-# .github/workflows/deploy.yml
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]          # or whatever your default branch is
-  workflow_dispatch: {}       # manual trigger
+    branches: [main]
+  workflow_dispatch: {}
 
-permissions:                  # required by Pages
+permissions:
   contents: read
   pages: write
   id-token: write
@@ -22,10 +21,10 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-      - run: pnpm install --frozen-lockfile      # restore deps
-      - run: pnpm run build                     # must emit static files
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build --base=/sweepy/
       - uses: actions/upload-pages-artifact@v3  # pack the ./dist folder
-        with: {path: ./dist}                    # ⇧ adjust if your build dir differs
+        with: {path: ./dist}
 
   deploy:
     needs: build

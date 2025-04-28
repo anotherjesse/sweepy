@@ -251,11 +251,20 @@ function initPlayerMeshes() {
 function createPlayerMesh(player: any) {
   // Create a simple cube as player avatar
   const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
-  const material = new THREE.MeshBasicMaterial({ color: player.color });
+  const material = new THREE.MeshBasicMaterial({ 
+    color: player.color,
+    transparent: true,
+    opacity: 0.7
+  });
+  
+  // Create player mesh
   const mesh = new THREE.Mesh(geometry, material);
   
   // Position at player's coordinates (slightly above ground)
   mesh.position.set(player.x + 0.5, 0.4, player.z + 0.5);
+  
+  // Store initial creation time for animation
+  mesh.userData.creationTime = Date.now();
   
   // Add to scene
   scene.add(mesh);
@@ -277,12 +286,35 @@ function updatePlayerMeshes() {
   });
 }
 
+// Animate player mesh with pulsing effect
+function animatePlayerMeshes() {
+  // Get current time for animation
+  const time = Date.now();
+  
+  // Update each player mesh
+  Object.values(players).forEach(player => {
+    if (player.mesh) {
+      // Calculate pulsing effect (oscillating between 0.4 and 0.8 opacity)
+      const age = time - (player.mesh.userData.creationTime || time);
+      const pulse = 0.4 + 0.4 * Math.sin(age * 0.003); // slower pulse
+      
+      // Update material opacity
+      const material = player.mesh.material as THREE.MeshBasicMaterial;
+      material.opacity = 0.4 + pulse * 0.4; // base opacity 0.4, pulsing by 0.4
+      
+      // Slightly bounce up and down
+      player.mesh.position.y = 0.4 + 0.05 * Math.sin(age * 0.005);
+    }
+  });
+}
+
 export function animate(inputPoll: () => void) {
   requestAnimationFrame(() => animate(inputPoll));
 
   inputPoll(); // players move
-  updateCamera(); // ⬅ NEW: make the camera chase them
-  // maybeSaveCameraState();  // ⬅ optional: persist ~1×/s
+  updateCamera(); // make the camera chase them
+  animatePlayerMeshes(); // animate player meshes with pulsing effect
+  // maybeSaveCameraState();  // optional: persist ~1×/s
 
   renderer.render(scene, camera);
 }

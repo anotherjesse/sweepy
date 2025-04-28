@@ -70,22 +70,22 @@ export function onKeyDown(event: KeyboardEvent) {
 
     case "KeyW":
     case "ArrowUp":
-      actions.dZ = 1;
+      actions.dX = -1;
       break;
 
     case "KeyA":
     case "ArrowLeft":
-      actions.dX = 1;
+      actions.dZ = 1;
       break;
 
     case "KeyS":
     case "ArrowDown":
-      actions.dZ = -1;
+      actions.dX = 1;
       break;
 
     case "KeyD":
     case "ArrowRight":
-      actions.dX = -1;
+      actions.dZ = -1;
       break;
 
     case "Space":

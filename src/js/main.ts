@@ -1,4 +1,4 @@
-import { animate, initMeshes } from "./gfx/render";
+import { animate, initMeshes, renderer } from "./gfx/render";
 import { fade, initUI, setupFadeOverlay, unfade } from "./gfx/ui";
 import { setupColorScheme } from "./gfx/darkmode";
 import { generateBoard, loadGameData } from "./game";
@@ -15,6 +15,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   initKeyboard();
   initGamepads();
   initMeshes();
+
+  // Check for vertex texture support
+  const maxVertexTex = renderer.capabilities.maxVertexTextures;
+  if (maxVertexTex === 0) {
+    console.warn("This device does not support vertex textures - falling back to attribute mode");
+  }
 
   // get saved game, fallback to generating a new board
   await loadGameData() || generateBoard();

@@ -5,9 +5,8 @@ import { initCamera, updateCamera, camera } from "./camera";
 import { players } from "../players";
 
 let cellMesh: THREE.InstancedMesh | null = null;
-let stateTexture: THREE.DataTexture | null = null;
 const scene = new THREE.Scene();
-const renderer = new THREE.WebGLRenderer({ antialias: false });
+export const renderer = new THREE.WebGLRenderer({ antialias: false });
 scene.background = new THREE.Color(0x333333);
 renderer.setPixelRatio(2);
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -75,23 +74,17 @@ export function initMeshes() {
     new THREE.InstancedBufferAttribute(offsets, 2),
   );
 
-  // Create DataTexture from states array
-  stateTexture = new THREE.DataTexture(
-    states,
-    config.W,
-    config.H,
-    THREE.LuminanceFormat,
-    THREE.UnsignedByteType,
-  );
-  stateTexture.magFilter = THREE.NearestFilter;
-  stateTexture.minFilter = THREE.NearestFilter;
-  stateTexture.needsUpdate = true;
+  // Create an InstancedBufferAttribute that mirrors the Uint8Array "states"
+  // (WebGL attributes must be floats, so we copy the bytes into a Float32Array)
+  const stateArray = new Float32Array(config.N);
+  stateArray.set(states);
+  const aState = new THREE.InstancedBufferAttribute(stateArray, 1);
+  cellGeo.setAttribute('aState', aState);
 
   // Create shader material for the sprite sheet
   const cellMat = new THREE.ShaderMaterial({
     uniforms: {
       atlas: { value: spriteTexture },
-      stateTex: { value: stateTexture },
     },
     defines: {
       GRID_W: config.W.toFixed(1),
@@ -101,15 +94,15 @@ export function initMeshes() {
     },
     vertexShader: `
     attribute vec2 aOffset;
+    attribute float aState;
     varying vec2 vUv;
     
-    uniform sampler2D stateTex;
     uniform sampler2D atlas;
     
     void main() {
       // 1) figure out which texel (cell) we are
       vec2 texCoord = (aOffset + 0.5) / vec2(GRID_W, GRID_H);
-      float rawState = texture2D(stateTex, texCoord).r * 255.0;
+      float rawState = aState;
       
       // 2) decode bits
       bool revealed = mod(rawState, 32.0) >= 16.0;
@@ -190,14 +183,16 @@ export function initMeshes() {
 export function updateMeshes() {
   console.log("Updating meshes with states array");
 
-  if (!cellMesh || !stateTexture) {
+  if (!cellMesh) {
     console.error("Meshes not initialized");
     return;
   }
 
-  // All we need to do is mark the texture as needing an update
-  // The shader will automatically read the new state
-  stateTexture.needsUpdate = true;
+  // Copy the changed bytes into the float attribute and flag it dirty
+  const arr = (cellMesh.geometry.getAttribute('aState') as THREE.InstancedBufferAttribute);
+  const arrData = arr.array as Float32Array;
+  for (let i = 0; i < config.N; ++i) arrData[i] = states[i];
+  arr.needsUpdate = true;
   
   // Update player meshes
   updatePlayerMeshes();
@@ -223,7 +218,7 @@ function createPlayerMesh(player: any) {
   const mesh = new THREE.Mesh(geometry, material);
   
   // Position at player's coordinates (slightly above ground)
-  mesh.position.set(player.x, 0.4, player.z);
+  mesh.position.set(player.x + 0.5, 0.4, player.z + 0.5);
   
   // Add to scene
   scene.add(mesh);
@@ -240,7 +235,7 @@ function updatePlayerMeshes() {
       createPlayerMesh(player);
     } else {
       // Update existing mesh position
-      player.mesh.position.set(player.x, 0.4, player.z);
+      player.mesh.position.set(player.x + 0.5, 0.4, player.z + 0.5);
     }
   });
 }

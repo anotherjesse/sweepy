@@ -122,6 +122,6 @@ function pollPlayer(player: Player) {
     
     // Update player mesh position if it exists
     if (player.mesh) {
-        player.mesh.position.set(player.x, 0, player.z);
+        player.mesh.position.set(player.x + 0.5, 0.4, player.z + 0.5);
     }
 }

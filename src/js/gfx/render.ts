@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { states } from "../game";
+import { states, gameState } from "../game";
 import * as config from "../config";
 import { initCamera, updateCamera, camera } from "./camera";
 import { players } from "../players";
@@ -110,24 +110,48 @@ export function initMeshes() {
       bool mine     = mod(floor(rawState / 64.0), 2.0) > 0.5;
       float adj     = mod(rawState, 16.0);
       
+      // Import from JS
+      bool debugMode = false;
+      #ifdef DEBUG_MODE
+        debugMode = true;
+      #endif
+      
       // 3) pick your atlas cell (u,v) based on that
       vec2 tileUV;
-      if (!revealed) {
-        if (flagged) {
-          tileUV = vec2(0.0, 0.0);    // flag at col=0,row=0
+      
+      if (debugMode) {
+        // In debug mode, show all mines and numbers regardless of revealed state
+        if (mine) {
+          tileUV = vec2(1.0, 0.0);      // mine at col=1,row=0
         } else {
-          tileUV = vec2(3.0, 0.0);    // hidden tile
+          // numbers 0-8
+          if (adj == 0.0) {
+            tileUV = vec2(3.0, 0.0);    // empty cell
+          } else if (adj <= 4.0) {
+            tileUV = vec2(adj - 1.0, 2.0);  // numbers 1-4 at row 2
+          } else {
+            tileUV = vec2(adj - 5.0, 1.0);  // numbers 5-8 at row 1
+          }
         }
-      } else if (mine) {
-        tileUV = vec2(1.0, 0.0);      // exploded mine at col=1,row=0
       } else {
-        // numbers 1–8: pick row/col
-        if (adj == 0.0) {
-          tileUV = vec2(3.0, 0.0);    // empty revealed cell
-        } else if (adj <= 4.0) {
-          tileUV = vec2(adj - 1.0, 2.0);  // numbers 1-4 at row 2
+        // Normal game mode
+        if (!revealed) {
+          if (flagged) {
+            tileUV = vec2(0.0, 0.0);    // flag at col=0,row=0
+          } else {
+            tileUV = vec2(3.0, 0.0);    // hidden tile
+          }
+        } else if (mine) {
+          tileUV = vec2(1.0, 0.0);      // exploded mine at col=1,row=0
         } else {
-          tileUV = vec2(adj - 5.0, 1.0);  // numbers 5-8 at row 1
+          // numbers 1–8: pick row/col
+          if (adj == 0.0) {
+            tileUV = vec2(3.0, 0.0);    // empty revealed cell
+          } else if (adj <= 4.0) {
+            tileUV = vec2(adj - 1.0, 2.0);  // numbers 1-4 at row 2
+          } else {
+            tileUV = vec2(adj - 5.0, 1.0);  // numbers 5-8 at row 1
+          }
         }
       }
       
@@ -186,6 +210,19 @@ export function updateMeshes() {
   if (!cellMesh) {
     console.error("Meshes not initialized");
     return;
+  }
+
+  // Get the shader material
+  const material = cellMesh.material as THREE.ShaderMaterial;
+  
+  // Set debug mode define
+  if (material.defines) {
+    if (gameState.debugMode) {
+      material.defines.DEBUG_MODE = true;
+    } else {
+      delete material.defines.DEBUG_MODE;
+    }
+    material.needsUpdate = true;
   }
 
   // Copy the changed bytes into the float attribute and flag it dirty

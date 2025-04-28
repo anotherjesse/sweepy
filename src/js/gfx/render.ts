@@ -170,7 +170,58 @@ export function initMeshes() {
     varying vec2 vUv;
     
     void main() {
-      gl_FragColor = texture2D(atlas, vUv);
+      // Get original texture color (black/white/transparent)
+      vec4 texColor = texture2D(atlas, vUv);
+      
+      // Calculate the sprite position we're in (0-3 x, 0-2 y)
+      float spriteX = floor(vUv.x * 4.0);
+      float spriteY = floor(vUv.y * 3.0);
+      
+      // Skip coloring if fully transparent
+      if (texColor.a < 0.1) {
+        gl_FragColor = texColor;
+        return;
+      }
+      
+      // Define colors for each number and flag/mine
+      vec3 flagColor = vec3(1.0, 0.0, 0.0);        // Red for flag (0,0)
+      vec3 mineColor = vec3(0.0, 0.0, 0.0);        // Black for mine (1,0)
+      vec3 emptyColor = vec3(0.8, 0.8, 0.8);       // Light gray for empty (3,0)
+      
+      vec3 num1Color = vec3(0.0, 0.0, 1.0);        // Blue for 1
+      vec3 num2Color = vec3(0.0, 0.5, 0.0);        // Green for 2
+      vec3 num3Color = vec3(1.0, 0.0, 0.0);        // Red for 3
+      vec3 num4Color = vec3(0.0, 0.0, 0.5);        // Dark Blue for 4
+      vec3 num5Color = vec3(0.5, 0.0, 0.0);        // Brown for 5
+      vec3 num6Color = vec3(0.0, 0.5, 0.5);        // Teal for 6
+      vec3 num7Color = vec3(0.0, 0.0, 0.0);        // Black for 7
+      vec3 num8Color = vec3(0.5, 0.5, 0.5);        // Gray for 8
+      
+      // Default to black
+      vec3 finalColor = vec3(0.0, 0.0, 0.0);
+      
+      // Coloring logic based on sprite position
+      if (spriteY == 0.0) {
+        // Top row
+        if (spriteX == 0.0) finalColor = flagColor;       // Flag
+        else if (spriteX == 1.0) finalColor = mineColor;  // Mine
+        else if (spriteX == 3.0) finalColor = emptyColor; // Empty cell
+      } else if (spriteY == 2.0) {
+        // Bottom row - numbers 1-4
+        if (spriteX == 0.0) finalColor = num1Color;
+        else if (spriteX == 1.0) finalColor = num2Color;
+        else if (spriteX == 2.0) finalColor = num3Color;
+        else if (spriteX == 3.0) finalColor = num4Color;
+      } else if (spriteY == 1.0) {
+        // Middle row - numbers 5-8
+        if (spriteX == 0.0) finalColor = num5Color;
+        else if (spriteX == 1.0) finalColor = num6Color;
+        else if (spriteX == 2.0) finalColor = num7Color;
+        else if (spriteX == 3.0) finalColor = num8Color;
+      }
+      
+      // Apply color based on texture intensity
+      gl_FragColor = vec4(finalColor * texColor.r, texColor.a);
     }
     `,
     side: THREE.DoubleSide,

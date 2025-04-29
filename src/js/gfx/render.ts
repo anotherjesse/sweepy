@@ -108,6 +108,7 @@ export function initMeshes() {
       bool revealed = mod(rawState, 32.0) >= 16.0;
       bool flagged  = mod(floor(rawState / 32.0), 2.0) > 0.5;
       bool mine     = mod(floor(rawState / 64.0), 2.0) > 0.5;
+      bool finished = mod(floor(rawState / 128.0), 2.0) > 0.5;
       float adj     = mod(rawState, 16.0);
       
       // Import from JS
@@ -126,7 +127,7 @@ export function initMeshes() {
         } else {
           // numbers 0-8
           if (adj == 0.0) {
-            tileUV = vec2(3.0, 0.0);    // empty cell
+            tileUV = vec2(2.0, 0.0);    // empty cell
           } else if (adj <= 4.0) {
             tileUV = vec2(adj - 1.0, 2.0);  // numbers 1-4 at row 2
           } else {
@@ -152,6 +153,11 @@ export function initMeshes() {
           } else {
             tileUV = vec2(adj - 5.0, 1.0);  // numbers 5-8 at row 1
           }
+        }
+        
+        // Override for finished mines (mines that are surrounded by revealed cells)
+        if (mine && finished) {
+          tileUV = vec2(1.0, 0.0);     // Use a different tile for finished mines (col=2,row=0)
         }
       }
       
@@ -185,7 +191,6 @@ export function initMeshes() {
       
       // Define colors for each number and flag/mine
       vec3 flagColor = vec3(1.0, 0.0, 0.0);        // Red for flag (0,0)
-      vec3 mineColor = vec3(0.0, 0.0, 0.0);        // Black for mine (1,0)
       vec3 emptyColor = vec3(0.8, 0.8, 0.8);       // Light gray for empty (3,0)
       
       vec3 num1Color = vec3(0.0, 0.0, 1.0);        // Blue for 1
@@ -199,12 +204,16 @@ export function initMeshes() {
       
       // Default to black
       vec3 finalColor = vec3(0.0, 0.0, 0.0);
+
+      if (spriteX == 1.0 && spriteY == 0.0) {
+        gl_FragColor = texColor;
+        return;
+      }
       
       // Coloring logic based on sprite position
       if (spriteY == 0.0) {
         // Top row
         if (spriteX == 0.0) finalColor = flagColor;       // Flag
-        else if (spriteX == 1.0) finalColor = mineColor;  // Mine
         else if (spriteX == 3.0) finalColor = emptyColor; // Empty cell
       } else if (spriteY == 2.0) {
         // Bottom row - numbers 1-4

@@ -258,15 +258,23 @@ function floodFillReveal(index: number) {
 
 // Function to check for mines that are completely boxed in
 export function checkForBoxedInMines() {
+    const { MINE, REVEALED, FLAGGED, FINISHED } = config.cellStateConstants;
+    
+    // Log constants for debugging
+    console.log("Constants:", {
+        MINE: MINE.toString(16),
+        REVEALED: REVEALED.toString(16),
+        FLAGGED: FLAGGED.toString(16),
+        FINISHED: FINISHED.toString(16)
+    });
+    
+    // First, let's check each mine individually
     for (let i = 0; i < config.N; i++) {
         // Skip if not a mine or already marked as finished
-        if (
-            !(states[i] & config.cellStateConstants.MINE) ||
-            (states[i] & config.cellStateConstants.FINISHED)
-        ) continue;
-
+        if (!(states[i] & MINE) || (states[i] & FINISHED)) continue;
+        
         const x = i % config.W, z = Math.floor(i / config.W);
-        let allRevealed = true;
+        let allNonMinesRevealed = true;
 
         // Check all 8 adjacent cells
         for (let dx = -1; dx <= 1; dx++) {
@@ -282,18 +290,50 @@ export function checkForBoxedInMines() {
                 }
 
                 const ni = nx + nz * config.W;
-                // If any adjacent cell is not revealed, the mine is not boxed in
-                if (!(states[ni] & config.cellStateConstants.REVEALED)) {
-                    allRevealed = false;
-                    break;
+                
+                // Only care about non-mine cells
+                if (!(states[ni] & MINE)) {
+                    // If any non-mine adjacent cell is not revealed, not boxed in
+                    if (!(states[ni] & REVEALED)) {
+                        allNonMinesRevealed = false;
+                        break;
+                    }
                 }
             }
-            if (!allRevealed) break;
+            if (!allNonMinesRevealed) break;
         }
 
-        // If all adjacent cells are revealed, mark the mine as finished
-        if (allRevealed) {
-            states[i] |= config.cellStateConstants.FINISHED;
+        // If all non-mine cells around this mine are revealed, mark it as finished
+        if (allNonMinesRevealed) {
+            // Debug logging to show the state before and after
+            console.log(`Mine at (${x},${z}) - Before: 0x${states[i].toString(16)}`);
+            states[i] |= FINISHED;
+            console.log(`Mine at (${x},${z}) - After: 0x${states[i].toString(16)}, FINISHED bit: 0x${FINISHED.toString(16)}`);
+            
+            // Explicitly verify the FINISHED bit is set
+            if (!(states[i] & FINISHED)) {
+                console.error(`FAILED to set FINISHED bit on mine at (${x},${z})!`);
+            }
+        }
+    }
+    
+    // For debugging - count total finished mines
+    let finishedCount = 0;
+    for (let i = 0; i < config.N; i++) {
+        if ((states[i] & MINE) && (states[i] & FINISHED)) {
+            finishedCount++;
+        }
+    }
+    
+    console.log(`Total finished mines: ${finishedCount}`);
+    
+    // Verify mesh update
+    console.log("After checkForBoxedInMines, first 10 mines states:");
+    let count = 0;
+    for (let i = 0; i < config.N && count < 10; i++) {
+        if (states[i] & MINE) {
+            console.log(`Mine ${count} at index ${i}: 0x${states[i].toString(16)}`);
+            count++;
         }
     }
 }

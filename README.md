@@ -2,6 +2,12 @@
 
 A large minesweeper-style board renderer with procedural generation.
 
+## potential ideas
+
+- when the mines are surrounded by revealed cells, they turn into gems you can collect
+- you can spend gems to rescue players?
+- make it about a forest with trees and animals and stuff instead of mines
+
 ## Gameplay
 
 - you can zoom in and out using the mouse wheel

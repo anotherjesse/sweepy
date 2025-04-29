@@ -81,6 +81,9 @@ function calculateAdjacentMines() {
     for (let i = 0; i < config.N; i++) {
         if (states[i] & MINE) continue; // Skip if this is a mine
 
+        // First clear the NUMBER_MASK bits
+        states[i] &= ~NUMBER_MASK;
+        
         const x = i % config.W, z = Math.floor(i / config.W);
         let count = 0;
 
@@ -98,12 +101,21 @@ function calculateAdjacentMines() {
                 }
 
                 const ni = nx + nz * config.W;
-                if (states[ni] & config.cellStateConstants.MINE) count++;
+                // Ensure index is valid
+                if (ni >= 0 && ni < config.N && (states[ni] & MINE)) {
+                    count++;
+                }
             }
         }
 
+        // Ensure count doesn't exceed the mask capacity (15)
+        if (count > 8) {
+            console.error(`Count is too high: ${count} for cell ${i}`);
+            count = 8;      
+        }
+        
         // Store adjacent mine count in the NUMBER_MASK bits
-        states[i] = (states[i] & ~NUMBER_MASK) | count;
+        states[i] |= count;
     }
 }
 

@@ -7,7 +7,7 @@ import { players } from "../players";
 let cellMesh: THREE.InstancedMesh | null = null;
 const scene = new THREE.Scene();
 export const renderer = new THREE.WebGLRenderer({ antialias: false });
-scene.background = new THREE.Color(0x333333);
+scene.background = new THREE.Color(0x808080);
 renderer.setPixelRatio(2);
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
@@ -190,7 +190,7 @@ export function initMeshes() {
       
       vec3 num1Color = vec3(0.0, 0.0, 1.0);        // Blue for 1
       vec3 num2Color = vec3(0.0, 0.5, 0.0);        // Green for 2
-      vec3 num3Color = vec3(1.0, 0.0, 0.0);        // Red for 3
+      vec3 num3Color = vec3(1.0, 0.5, 0.0);        // Red for 3
       vec3 num4Color = vec3(0.0, 0.0, 0.5);        // Dark Blue for 4
       vec3 num5Color = vec3(0.5, 0.0, 0.0);        // Brown for 5
       vec3 num6Color = vec3(0.0, 0.5, 0.5);        // Teal for 6

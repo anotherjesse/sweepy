@@ -314,6 +314,9 @@ function createPlayerMesh(player: any) {
   // Position at player's coordinates (slightly above ground)
   mesh.position.set(player.x + 0.5, 0.4, player.z + 0.5);
   
+  // Apply initial scale - start large and diffuse
+  mesh.scale.set(5, 5, 5);
+  
   // Store initial creation time for animation
   mesh.userData.creationTime = Date.now();
   
@@ -345,16 +348,31 @@ function animatePlayerMeshes() {
   // Update each player mesh
   Object.values(players).forEach(player => {
     if (player.mesh) {
-      // Calculate pulsing effect (oscillating between 0.4 and 0.8 opacity)
+      // Calculate age of the player mesh since creation
       const age = time - (player.mesh.userData.creationTime || time);
-      const pulse = 0.4 + 0.4 * Math.sin(age * 0.003); // slower pulse
       
-      // Update material opacity
-      const material = player.mesh.material as THREE.MeshBasicMaterial;
-      material.opacity = 0.4 + pulse * 0.4; // base opacity 0.4, pulsing by 0.4
-      
-      // Slightly bounce up and down
-      player.mesh.position.y = 0.4 + 0.05 * Math.sin(age * 0.005);
+      // Scale animation - converge to normal size (1,1,1) over 1 second
+      if (age < 1000) {
+        // Ease-out animation curve
+        const progress = 1 - Math.pow(1 - age/1000, 3);
+        const targetScale = 1;
+        const currentScale = 5 * (1 - progress) + targetScale * progress;
+        player.mesh.scale.set(currentScale, currentScale, currentScale);
+        
+        // Gradually increase opacity as it scales down
+        const material = player.mesh.material as THREE.MeshBasicMaterial;
+        material.opacity = 0.3 + 0.4 * progress;
+      } else {
+        // Regular pulsing effect once animation is complete
+        const pulse = 0.4 + 0.4 * Math.sin(age * 0.003); // slower pulse
+        
+        // Update material opacity
+        const material = player.mesh.material as THREE.MeshBasicMaterial;
+        material.opacity = 0.4 + pulse * 0.4; // base opacity 0.4, pulsing by 0.4
+        
+        // Slightly bounce up and down
+        player.mesh.position.y = 0.4 + 0.05 * Math.sin(age * 0.005);
+      }
     }
   });
 }

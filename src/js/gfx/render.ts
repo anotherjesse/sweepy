@@ -54,6 +54,7 @@ export function initMeshes() {
   // Make sure cells are flat on XZ plane
   cellGeo.translate(0.5, -0.5, 0);
   cellGeo.rotateX(-Math.PI / 2);
+  cellGeo.rotateY(Math.PI / 2);  // Fix sprite orientation
 
   // Load the sprite texture
   const spriteTexture = loadSpriteAtlas();
@@ -147,7 +148,7 @@ export function initMeshes() {
         } else {
           // numbers 1–8: pick row/col
           if (adj == 0.0) {
-            tileUV = vec2(3.0, 0.0);    // empty revealed cell
+            tileUV = vec2(2.0, 0.0);    // empty revealed cell
           } else if (adj <= 4.0) {
             tileUV = vec2(adj - 1.0, 2.0);  // numbers 1-4 at row 2
           } else {

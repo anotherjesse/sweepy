@@ -188,7 +188,7 @@ export function revealCell(
     const { disablePlayer } = gameState;
     if (disablePlayer) return;
 
-    const index = player.x + player.z * config.W;
+    const index = player.x + (player.z +1) * config.W;
 
     const state = states[index];
 
@@ -345,7 +345,7 @@ export function toggleFlag(player: Player) {
 
     if (disablePlayer) return;
 
-    const index = player.x + player.z * config.W;
+    const index = player.x + (player.z +1) * config.W;
 
     if (states[index] & REVEALED) return;
 

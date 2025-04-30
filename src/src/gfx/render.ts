@@ -6,7 +6,7 @@ import { players, Player } from "../players";
 
 let cellMesh: THREE.InstancedMesh | null = null;
 const scene = new THREE.Scene();
-export const renderer = new THREE.WebGLRenderer({ antialias: true });
+export const renderer = new THREE.WebGLRenderer({ antialias: false });
 scene.background = new THREE.Color(0x808080);
 renderer.setPixelRatio(2);
 globalThis.document.body.appendChild(renderer.domElement);
@@ -48,7 +48,7 @@ export function initMeshes() {
   // Create a plane geometry for cells - ensure they're square
   const cellGeo = new THREE.PlaneGeometry(1, 1);
   // Make sure cells are flat on XZ plane
-  cellGeo.translate(0.5, -0.5, 0);
+  cellGeo.translate(0, 0, 0);
   cellGeo.rotateX(-Math.PI / 2);
   cellGeo.rotateY(Math.PI / 2); // Fix sprite orientation
 

@@ -18,10 +18,10 @@ import { players } from "../players";
 /*  Constants & internal state                                        */
 /* ------------------------------------------------------------------ */
 
-const POS_LERP   = 0.01;           // How quickly we chase the centroid
-const ZOOM_LERP  = 0.15;           // How quickly we chase the target zoom
-const PAD        = 2;              // Extra cells around the bounding box
-const ZOOM_EPS   = 1e-3;           // Threshold before we call updateProjection
+const POS_LERP = 0.01; // How quickly we chase the centroid
+const ZOOM_LERP = 0.15; // How quickly we chase the target zoom
+const PAD = 2; // Extra cells around the bounding box
+const ZOOM_EPS = 1e-3; // Threshold before we call updateProjection
 
 /** value the *user* asked for (mouse wheel / gamepad shoulder etc.)  */
 let requestedZoom = 20;
@@ -31,12 +31,12 @@ let requestedZoom = 20;
 /* ------------------------------------------------------------------ */
 
 export const camera = new THREE.OrthographicCamera(
-  -window.innerWidth  / 2,
-   window.innerWidth  / 2,
-   window.innerHeight / 2,
-  -window.innerHeight / 2,
+  -globalThis.innerWidth / 2,
+  globalThis.innerWidth / 2,
+  globalThis.innerHeight / 2,
+  -globalThis.innerHeight / 2,
   0.1,
-  10_000
+  10_000,
 );
 
 /** Lerped-to target the camera & OrbitControls should look at. */
@@ -54,13 +54,17 @@ export function zoomBy(factor: number) {
   requestedZoom = THREE.MathUtils.clamp(
     requestedZoom * factor,
     config.ZOOM_MIN,
-    config.ZOOM_MAX
+    config.ZOOM_MAX,
   );
 }
 
 /** User intent: jump to an explicit zoom. (Seldom used, but nice.) */
 export function setZoom(level: number) {
-  requestedZoom = THREE.MathUtils.clamp(level, config.ZOOM_MIN, config.ZOOM_MAX);
+  requestedZoom = THREE.MathUtils.clamp(
+    level,
+    config.ZOOM_MIN,
+    config.ZOOM_MAX,
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -83,20 +87,20 @@ export async function initCamera(renderer: THREE.WebGLRenderer) {
 
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
-  controls.enableRotate  = false;
+  controls.enableRotate = false;
   controls.screenSpacePanning = true;
   controls.target.set(startX, 0, startZ);
 
   // mouse: L-click drag pan • wheel zoom • no rotation
   controls.mouseButtons = {
-    LEFT  : THREE.MOUSE.LEFT,
+    LEFT: THREE.MOUSE.LEFT,
     MIDDLE: THREE.MOUSE.MIDDLE,
-    RIGHT : THREE.MOUSE.PAN,
+    RIGHT: THREE.MOUSE.PAN,
   };
 
-  window.addEventListener("wheel", e =>
-    zoomBy(e.deltaY > 0 ? 0.99 : 1.01), { passive: true }
-  );
+  globalThis.addEventListener("wheel", (e) => zoomBy(e.deltaY > 0 ? 0.99 : 1.01), {
+    passive: true,
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -113,9 +117,12 @@ export function updateCamera() {
   if (!list.length) {
     desiredPos.set(config.W / 2, 0, config.H / 2);
   } else {
-    let minX =  Infinity, maxX = -Infinity,
-        minZ =  Infinity, maxZ = -Infinity,
-        sumX = 0, sumZ = 0;
+    let minX = Infinity,
+      maxX = -Infinity,
+      minZ = Infinity,
+      maxZ = -Infinity,
+      sumX = 0,
+      sumZ = 0;
 
     for (const p of list) {
       minX = Math.min(minX, p.x);
@@ -130,17 +137,17 @@ export function updateCamera() {
     desiredPos.set(sumX / list.length, 0, sumZ / list.length);
 
     // World-space size we must fit (add a small pad so players aren’t flush)
-    const width  = Math.max(1, maxX - minX + PAD * 2);
+    const width = Math.max(1, maxX - minX + PAD * 2);
     const height = Math.max(1, maxZ - minZ + PAD * 2);
 
     // For an OrthographicCamera, visible width  = winWidth  / zoom
     //                                visible height = winHeight / zoom
-    const zoomToFitX = window.innerWidth  / width;
-    const zoomToFitY = window.innerHeight / height;
-    const zoomToFit  = THREE.MathUtils.clamp(
+    const zoomToFitX = globalThis.innerWidth / width;
+    const zoomToFitY = globalThis.innerHeight / height;
+    const zoomToFit = THREE.MathUtils.clamp(
       Math.min(zoomToFitX, zoomToFitY),
       config.ZOOM_MIN,
-      config.ZOOM_MAX
+      config.ZOOM_MAX,
     );
 
     // Our “goal” zoom is whichever is SMALLER:
@@ -149,8 +156,16 @@ export function updateCamera() {
 
     /* ---------- 2. Smoothly chase that goal ----------------------- */
     // Position (x,z) first – y stays fixed (orthographic depth doesn’t matter)
-    camera.position.x = THREE.MathUtils.lerp(camera.position.x, desiredPos.x, POS_LERP);
-    camera.position.z = THREE.MathUtils.lerp(camera.position.z, desiredPos.z, POS_LERP);
+    camera.position.x = THREE.MathUtils.lerp(
+      camera.position.x,
+      desiredPos.x,
+      POS_LERP,
+    );
+    camera.position.z = THREE.MathUtils.lerp(
+      camera.position.z,
+      desiredPos.z,
+      POS_LERP,
+    );
 
     controls.target.lerp(desiredPos, POS_LERP);
 
@@ -187,4 +202,3 @@ export async function maybeSaveCameraState() {
     zoom: requestedZoom,
   });
 }
-

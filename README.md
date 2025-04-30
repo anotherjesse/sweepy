@@ -4,7 +4,8 @@ A large minesweeper-style board renderer with procedural generation.
 
 ## potential ideas
 
-- when the mines are surrounded by revealed cells, they turn into gems you can collect
+- when the mines are surrounded by revealed cells, they turn into gems you can
+  collect
 - you can spend gems to rescue players?
 - make it about a forest with trees and animals and stuff instead of mines
 
@@ -17,14 +18,16 @@ A large minesweeper-style board renderer with procedural generation.
 - if you die, you have to wait a few seconds before you can play again
 - the game is generated procedurally, so no two games are the same
 - the seed should be stored in the url as a hash link - and read on page load
-- when all the a flag is added 
+- when all the a flag is added
 
 ## Tech
 
 ### Tools
+
 - for debug add a toggle to ignoring the "revealed" bit and show all cells
 
 ### Graphics
+
 - built with threejs - but it is not 3d
 - 2d map of quads using InstancedMesh
 - the camera is always looking straight down
@@ -32,33 +35,44 @@ A large minesweeper-style board renderer with procedural generation.
 - 1000x1000 grid of cells
 
 #### Camera Setup
+
 - Uses THREE.OrthographicCamera for a top-down view
 - Frustum setup on resize:
   ```js
   const h = window.innerHeight, w = window.innerWidth;
-  camera.left = -w/2; camera.right = w/2;
-  camera.top = h/2; camera.bottom = -h/2;
+  camera.left = -w / 2;
+  camera.right = w / 2;
+  camera.top = h / 2;
+  camera.bottom = -h / 2;
   ```
-- Camera position: `camera.position.set(0, 0, 100)` (z-axis is "height" above the board)
+- Camera position: `camera.position.set(0, 0, 100)` (z-axis is "height" above
+  the board)
 - Default up-vector (0,1,0) is kept
-- Zoom: mouse-wheel multiplies camera.zoom by 0.9 or 1.1, clamped between 0.5 and 20
+- Zoom: mouse-wheel multiplies camera.zoom by 0.9 or 1.1, clamped between 0.5
+  and 20
 - Re-centering: updateProjectionMatrix() called after every pan
-- Creates an infinite-sky view that never tilts; only x/y translate and zoom change
+- Creates an infinite-sky view that never tilts; only x/y translate and zoom
+  change
 
 #### Board/Cell Rendering
+
 - Geometry: a single PlaneGeometry(cellSize, cellSize)
-- Instancing: `new THREE.InstancedMesh(planeGeo, atlasMaterial, BOARD_SIZE*BOARD_SIZE)`
-- Each instance's transform matrix is translated by integer multiples of cellSize
+- Instancing:
+  `new THREE.InstancedMesh(planeGeo, atlasMaterial, BOARD_SIZE*BOARD_SIZE)`
+- Each instance's transform matrix is translated by integer multiples of
+  cellSize
 - Per-instance data uses two custom attributes:
   ```js
-  aOffset : vec2   // integer cell coordinate 
-  aUV     : vec2   // the bottom-left tile inside the 16×16 atlas
+  aOffset: vec2; // integer cell coordinate
+  aUV: vec2; // the bottom-left tile inside the 16×16 atlas
   ```
 - Fragment shader calculates final UV: `vUv = aUV + baseUv/16.0`
 - A 256×256 RGBA atlas holds all sprites (hidden, flag, numbers 0-8, mine, etc.)
-- State changes update `atlasMaterial.instanceMatrix.needsUpdate = true` when the bit-field array is modified
+- State changes update `atlasMaterial.instanceMatrix.needsUpdate = true` when
+  the bit-field array is modified
 
 #### Controls
+
 - Based on OrbitControls with rotation disabled:
   ```js
   controls.enableRotate = false;
@@ -73,6 +87,7 @@ A large minesweeper-style board renderer with procedural generation.
 - World-space to board-space conversion via raycaster.intersectObject()
 
 #### Number/Sprite Generation
+
 - Atlas: /public/atlas.png (256 × 256)
 - 16 × 16 tiles layout:
   ```
@@ -89,6 +104,7 @@ A large minesweeper-style board renderer with procedural generation.
 - Numbers are generated programmatically, not loaded as separate PNGs
 
 ### Game Gen
+
 - simplex-noise - for noise
 - seedrandom - for random number generation
 - store values of seen cells in 1000x1000 array of Uint8 (1 byte)

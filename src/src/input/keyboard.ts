@@ -1,12 +1,14 @@
-import * as config from "../config";
-import {
-  gameState,
-  startTeleport,
-} from "../game";
+import { gameState, startTeleport } from "../game";
 import { toggleUI } from "../gfx/ui";
 import { toggleDarkMode } from "../gfx/darkmode";
 import { zoomBy } from "../gfx/camera";
-import { type Actions, addPlayer, Player, removePlayer, players } from "../players";
+import {
+  type Actions,
+  addPlayer,
+  Player,
+  players,
+  removePlayer,
+} from "../players";
 
 // Active keys tracker
 const activeKeys = new Set<string>();
@@ -15,8 +17,8 @@ let player: Player | undefined;
 let actions: Actions = {};
 
 export function initKeyboard() {
-  window.addEventListener("keydown", onKeyDown);
-  window.addEventListener("keyup", onKeyUp);
+  globalThis.addEventListener("keydown", onKeyDown);
+  globalThis.addEventListener("keyup", onKeyUp);
 }
 
 // Handler for keydown events

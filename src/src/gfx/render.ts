@@ -1,31 +1,28 @@
 import * as THREE from "three";
-import { states, gameState } from "../game";
+import { gameState, states } from "../game";
 import * as config from "../config";
-import { initCamera, updateCamera, camera } from "./camera";
-import { players } from "../players";
+import { camera, initCamera, updateCamera } from "./camera";
+import { players, Player } from "../players";
 
 let cellMesh: THREE.InstancedMesh | null = null;
 const scene = new THREE.Scene();
-export const renderer = new THREE.WebGLRenderer({ antialias: false });
+export const renderer = new THREE.WebGLRenderer({ antialias: true });
 scene.background = new THREE.Color(0x808080);
 renderer.setPixelRatio(2);
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-initCamera(renderer);
-window.addEventListener("resize", handleResize);
+globalThis.document.body.appendChild(renderer.domElement);
+globalThis.addEventListener("resize", handleResize);
 
 export function handleResize() {
-  const h = window.innerHeight, w = window.innerWidth;
+  const h = globalThis.innerHeight, w = globalThis.innerWidth;
   camera.left = -w / 2;
   camera.right = w / 2;
   camera.top = h / 2;
   camera.bottom = -h / 2;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(w, h);
 }
-// Sprite sheet constants - will be used in shader
-const SPRITE_CELL_WIDTH = 1 / 4;
-const SPRITE_CELL_HEIGHT = 1 / 3; // 1/3 (for 4x3 sprite atlas)
+handleResize();
+initCamera(renderer);
 
 // Load sprite atlas
 function loadSpriteAtlas(): THREE.Texture {
@@ -44,8 +41,7 @@ export function initMeshes() {
   const boardGeo = new THREE.PlaneGeometry(config.W, config.H);
   // Make sure board is flat on XZ plane
   boardGeo.rotateX(-Math.PI / 2);
-  (window as any).boardGeo = boardGeo;
-  
+
   // Initialize player meshes
   initPlayerMeshes();
 
@@ -54,7 +50,7 @@ export function initMeshes() {
   // Make sure cells are flat on XZ plane
   cellGeo.translate(0.5, -0.5, 0);
   cellGeo.rotateX(-Math.PI / 2);
-  cellGeo.rotateY(Math.PI / 2);  // Fix sprite orientation
+  cellGeo.rotateY(Math.PI / 2); // Fix sprite orientation
 
   // Load the sprite texture
   const spriteTexture = loadSpriteAtlas();
@@ -80,7 +76,7 @@ export function initMeshes() {
   const stateArray = new Float32Array(config.N);
   stateArray.set(states);
   const aState = new THREE.InstancedBufferAttribute(stateArray, 1);
-  cellGeo.setAttribute('aState', aState);
+  cellGeo.setAttribute("aState", aState);
 
   // Create shader material for the sprite sheet
   const cellMat = new THREE.ShaderMaterial({
@@ -275,7 +271,7 @@ export function updateMeshes() {
 
   // Get the shader material
   const material = cellMesh.material as THREE.ShaderMaterial;
-  
+
   // Set debug mode define
   if (material.defines) {
     if (gameState.debugMode) {
@@ -287,21 +283,23 @@ export function updateMeshes() {
   }
 
   // Copy the changed bytes into the float attribute and flag it dirty
-  const arr = (cellMesh.geometry.getAttribute('aState') as THREE.InstancedBufferAttribute);
+  const arr = cellMesh.geometry.getAttribute(
+    "aState",
+  ) as THREE.InstancedBufferAttribute;
   const arrData = arr.array as Float32Array;
   for (let i = 0; i < config.N; ++i) arrData[i] = states[i];
   arr.needsUpdate = true;
-  
+
   // Update player meshes
   updatePlayerMeshes();
-  
+
   console.log("Meshes updated successfully");
 }
 
 // Initialize player meshes
 function initPlayerMeshes() {
   // Create player meshes for all existing players
-  Object.values(players).forEach(player => {
+  Object.values(players).forEach((player) => {
     if (!player.mesh) {
       createPlayerMesh(player);
     }
@@ -309,30 +307,30 @@ function initPlayerMeshes() {
 }
 
 // Create a mesh for a player
-function createPlayerMesh(player: any) {
+function createPlayerMesh(player: Player) {
   // Create a simple cube as player avatar
   const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
-  const material = new THREE.MeshBasicMaterial({ 
+  const material = new THREE.MeshBasicMaterial({
     color: player.color,
     transparent: true,
-    opacity: 0.7
+    opacity: 0.7,
   });
-  
+
   // Create player mesh
   const mesh = new THREE.Mesh(geometry, material);
-  
+
   // Position at player's coordinates (slightly above ground)
   mesh.position.set(player.x + 0.5, 0.4, player.z + 0.5);
-  
+
   // Apply initial scale - start large and diffuse
   mesh.scale.set(5, 5, 5);
-  
+
   // Store initial creation time for animation
   mesh.userData.creationTime = Date.now();
-  
+
   // Add to scene
   scene.add(mesh);
-  
+
   // Assign mesh to player
   player.mesh = mesh;
 }
@@ -340,7 +338,7 @@ function createPlayerMesh(player: any) {
 // Update player meshes
 function updatePlayerMeshes() {
   // Check for new players and create meshes for them
-  Object.values(players).forEach(player => {
+  Object.values(players).forEach((player) => {
     if (!player.mesh) {
       createPlayerMesh(player);
     } else {
@@ -354,32 +352,32 @@ function updatePlayerMeshes() {
 function animatePlayerMeshes() {
   // Get current time for animation
   const time = Date.now();
-  
+
   // Update each player mesh
-  Object.values(players).forEach(player => {
+  Object.values(players).forEach((player) => {
     if (player.mesh) {
       // Calculate age of the player mesh since creation
       const age = time - (player.mesh.userData.creationTime || time);
-      
+
       // Scale animation - converge to normal size (1,1,1) over 1 second
       if (age < 1000) {
         // Ease-out animation curve
-        const progress = 1 - Math.pow(1 - age/1000, 3);
+        const progress = 1 - Math.pow(1 - age / 1000, 3);
         const targetScale = 1;
         const currentScale = 5 * (1 - progress) + targetScale * progress;
         player.mesh.scale.set(currentScale, currentScale, currentScale);
-        
+
         // Gradually increase opacity as it scales down
         const material = player.mesh.material as THREE.MeshBasicMaterial;
         material.opacity = 0.3 + 0.4 * progress;
       } else {
         // Regular pulsing effect once animation is complete
         const pulse = 0.4 + 0.4 * Math.sin(age * 0.003); // slower pulse
-        
+
         // Update material opacity
         const material = player.mesh.material as THREE.MeshBasicMaterial;
         material.opacity = 0.4 + pulse * 0.4; // base opacity 0.4, pulsing by 0.4
-        
+
         // Slightly bounce up and down
         player.mesh.position.y = 0.4 + 0.05 * Math.sin(age * 0.005);
       }

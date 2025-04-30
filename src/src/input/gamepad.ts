@@ -1,4 +1,4 @@
-import { type Actions, addPlayer, type Player, removePlayer } from "../players";
+import { type Actions, addPlayer, removePlayer } from "../players";
 
 // FIXME(ja): add support for vibration/rumble when you hit a mine
 
@@ -9,8 +9,8 @@ export type GamepadButton = {
 
 export function initGamepads() {
   // Gamepad events
-  window.addEventListener("gamepadconnected", connectGamepad);
-  window.addEventListener("gamepaddisconnected", disconnectGamepad);
+  globalThis.addEventListener("gamepadconnected", connectGamepad);
+  globalThis.addEventListener("gamepaddisconnected", disconnectGamepad);
 }
 
 // FIXME(ja): if you are the first player to connect, you get to set the location,
@@ -19,7 +19,6 @@ function connectGamepad(e: GamepadEvent) {
   console.log("Gamepad connected:", e.gamepad, e.gamepad.id);
 
   const gamepad = e.gamepad;
-  let moved = false;
   addPlayer({
     name: `Gamepad ${e.gamepad.index}`,
     id: e.gamepad.id,
@@ -73,4 +72,3 @@ function disconnectGamepad(e: GamepadEvent) {
   console.log("Gamepad disconnected:", e.gamepad);
   removePlayer({ id: e.gamepad.id });
 }
-

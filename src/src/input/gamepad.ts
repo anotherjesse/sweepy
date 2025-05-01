@@ -7,6 +7,19 @@ export type GamepadButton = {
   previouslyPressed?: boolean;
 };
 
+// Utilities for edge-trigger implementation
+type PadMemory = {
+  btn: boolean[];    // previous button states
+  axes: number[];    // previous axes (rounded to -1/0/1 so noise is ignored)
+};
+const padMemory = new Map<string, PadMemory>();  // keyed by gamepad.id
+
+function axisDir(v: number): -1 | 0 | 1 {
+  if (v < -0.5) return -1;
+  if (v > 0.5)  return 1;
+  return 0;
+}
+
 export function initGamepads() {
   // Gamepad events
   globalThis.addEventListener("gamepadconnected", connectGamepad);
@@ -18,51 +31,55 @@ export function initGamepads() {
 function connectGamepad(e: GamepadEvent) {
   console.log("Gamepad connected:", e.gamepad, e.gamepad.id);
 
-  const gamepad = e.gamepad;
+  const id = e.gamepad.id;
   addPlayer({
     name: `Gamepad ${e.gamepad.index}`,
-    id: e.gamepad.id,
+    id,
     poll: () => {
-      const rv: Actions = {};
-      // D-pad movement
-      // Standard mapping usually has D-pad as buttons 12-15
-
-      // Up (button 12 or left stick/d-pad up)
-      if (gamepad.buttons[12]?.pressed || gamepad.axes[1] < -0.5) {
-        rv.dZ = -1;
-      }
-      // Down (button 13 or left stick/d-pad down)
-      if (gamepad.buttons[13]?.pressed || gamepad.axes[1] > 0.5) {
-        rv.dZ = 1;
-      }
-      // Left (button 14 or left stick/d-pad left)
-      if (gamepad.buttons[14]?.pressed || gamepad.axes[0] < -0.5) {
-        rv.dX = -1;
-      }
-      // Right (button 15 or left stick/d-pad right)
-      if (gamepad.buttons[15]?.pressed || gamepad.axes[0] > 0.5) {
-        rv.dX = 1;
+      const gamepad = globalThis.navigator.getGamepads().find((g) => g?.id === id);
+      if (!gamepad) {
+        console.error("Gamepad not found:", id);
+        removePlayer({ id });
+        return {};
       }
 
-      // Zoom controls with shoulder buttons (L1/R1 or LB/RB)
-      if (gamepad.buttons[4]?.pressed) {
-        rv.zoomBy = 0.95;
+      // Create memory for this pad on first poll
+      if (!padMemory.has(id)) {
+        padMemory.set(id, {
+          btn: gamepad.buttons.map((b) => b.pressed),
+          axes: gamepad.axes.map(axisDir),
+        });
       }
 
-      if (gamepad.buttons[5]?.pressed) {
-        rv.zoomBy = 1.05;
+      const mem = padMemory.get(id)!;
+      const out: Actions = {};
+
+      // AXES (d-pad + left stick)
+      const axX = axisDir(gamepad.axes[0]);
+      const axY = axisDir(gamepad.axes[1]);
+
+      // Only emit actions when state changes
+      if ((gamepad.buttons[14]?.pressed || axX === -1) && mem.axes[0] !== -1) out.dZ = 1;
+      if ((gamepad.buttons[15]?.pressed || axX === 1) && mem.axes[0] !== 1) out.dZ = -1;
+      if ((gamepad.buttons[12]?.pressed || axY === -1) && mem.axes[1] !== -1) out.dX = -1;
+      if ((gamepad.buttons[13]?.pressed || axY === 1) && mem.axes[1] !== 1) out.dX = 1;
+
+      // BUTTONS
+      if (gamepad.buttons[4]?.pressed && !mem.btn[4]) out.zoomBy = 0.98;
+      if (gamepad.buttons[5]?.pressed && !mem.btn[5]) out.zoomBy = 1.02;
+      if (gamepad.buttons[0]?.pressed && !mem.btn[0]) out.revealCell = true;
+      if (gamepad.buttons[1]?.pressed && !mem.btn[1]) out.toggleFlag = true;
+
+      // Log movement changes for debugging
+      if (out.dX !== undefined || out.dZ !== undefined) {
+        console.log("Gamepad movement:", out.dX, out.dZ);
       }
 
-      // Button 0 (A on Xbox, X on PlayStation) - Reveal cell
-      if (gamepad.buttons[0]?.pressed) {
-        rv.revealCell = true;
-      }
+      // Update memory for the next frame
+      mem.btn = gamepad.buttons.map((b) => b.pressed);
+      mem.axes = gamepad.axes.map(axisDir);
 
-      // Button 1 (B on Xbox, Circle on PlayStation) - Toggle flag
-      if (gamepad.buttons[1]?.pressed) {
-        rv.toggleFlag = true;
-      }
-      return rv;
+      return out;
     },
   });
 }

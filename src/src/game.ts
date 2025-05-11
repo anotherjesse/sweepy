@@ -208,7 +208,6 @@ function floodFillReveal(index: number) {
 
 // Function to check for mines that are completely boxed in
 export function checkForBoxedInMines() {
-    console.log("checkForBoxedInMines");
     const visitedMines = new Set<number>();
 
     const findLocalMines = (index: number) => {
@@ -307,7 +306,6 @@ export function checkForBoxedInMines() {
             return true;
         });
 
-        console.log("allRevealed", allRevealed);
         if (!allRevealed) continue;
 
         // all mines are flagged and all adjacent cells are revealed

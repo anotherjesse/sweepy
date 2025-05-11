@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { gameState, states } from "../game";
 import * as config from "../config";
 import { camera, initCamera, updateCamera } from "./camera";
-import { players, Player } from "../players";
+import { Player, players } from "../players";
 
 let cellMesh: THREE.InstancedMesh | null = null;
 const scene = new THREE.Scene();
@@ -262,8 +262,6 @@ export function initMeshes() {
 }
 
 export function updateMeshes() {
-  console.log("Updating meshes with states array");
-
   if (!cellMesh) {
     console.error("Meshes not initialized");
     return;

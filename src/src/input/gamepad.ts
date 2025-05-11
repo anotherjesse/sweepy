@@ -9,19 +9,20 @@ export type GamepadButton = {
 
 // Utilities for edge-trigger implementation
 type PadMemory = {
-  btn: boolean[];    // previous button states
-  axes: number[];    // previous axes (rounded to -1/0/1 so noise is ignored)
+  btn: boolean[]; // previous button states
+  axes: number[]; // previous axes (rounded to -1/0/1 so noise is ignored)
 };
-const padMemory = new Map<string, PadMemory>();  // keyed by gamepad.id
+const padMemory = new Map<string, PadMemory>(); // keyed by gamepad.id
 
 function axisDir(v: number): -1 | 0 | 1 {
   if (v < -0.5) return -1;
-  if (v > 0.5)  return 1;
+  if (v > 0.5) return 1;
   return 0;
 }
 
 export function initGamepads() {
   // Gamepad events
+  console.log("initGamepads");
   globalThis.addEventListener("gamepadconnected", connectGamepad);
   globalThis.addEventListener("gamepaddisconnected", disconnectGamepad);
 }
@@ -36,7 +37,9 @@ function connectGamepad(e: GamepadEvent) {
     name: `Gamepad ${e.gamepad.index}`,
     id,
     poll: () => {
-      const gamepad = globalThis.navigator.getGamepads().find((g) => g?.id === id);
+      const gamepad = globalThis.navigator.getGamepads().find((g) =>
+        g?.id === id
+      );
       if (!gamepad) {
         console.error("Gamepad not found:", id);
         removePlayer({ id });
@@ -59,10 +62,18 @@ function connectGamepad(e: GamepadEvent) {
       const axY = axisDir(gamepad.axes[1]);
 
       // Only emit actions when state changes
-      if ((gamepad.buttons[14]?.pressed || axX === -1) && mem.axes[0] !== -1) out.dZ = 1;
-      if ((gamepad.buttons[15]?.pressed || axX === 1) && mem.axes[0] !== 1) out.dZ = -1;
-      if ((gamepad.buttons[12]?.pressed || axY === -1) && mem.axes[1] !== -1) out.dX = -1;
-      if ((gamepad.buttons[13]?.pressed || axY === 1) && mem.axes[1] !== 1) out.dX = 1;
+      if ((gamepad.buttons[14]?.pressed || axX === -1) && mem.axes[0] !== -1) {
+        out.dZ = 1;
+      }
+      if ((gamepad.buttons[15]?.pressed || axX === 1) && mem.axes[0] !== 1) {
+        out.dZ = -1;
+      }
+      if ((gamepad.buttons[12]?.pressed || axY === -1) && mem.axes[1] !== -1) {
+        out.dX = -1;
+      }
+      if ((gamepad.buttons[13]?.pressed || axY === 1) && mem.axes[1] !== 1) {
+        out.dX = 1;
+      }
 
       // BUTTONS
       if (gamepad.buttons[4]?.pressed && !mem.btn[4]) out.zoomBy = 0.98;

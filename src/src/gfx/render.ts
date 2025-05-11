@@ -6,21 +6,38 @@ import { Player, players } from "../players";
 
 let cellMesh: THREE.InstancedMesh | null = null;
 const scene = new THREE.Scene();
-export const renderer = new THREE.WebGLRenderer({ antialias: false });
+export const renderer = new THREE.WebGLRenderer({
+  antialias: false,
+  powerPreference: "high-performance",
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap at 2x for performance
 scene.background = new THREE.Color(0x808080);
-renderer.setPixelRatio(2);
+
 globalThis.document.body.appendChild(renderer.domElement);
 globalThis.addEventListener("resize", handleResize);
 
 export function handleResize() {
-  const h = globalThis.innerHeight, w = globalThis.innerWidth;
+  const h = globalThis.innerHeight;
+  const w = globalThis.innerWidth;
+
+  // Update camera properties (these use logical width/height)
   camera.left = -w / 2;
   camera.right = w / 2;
   camera.top = h / 2;
   camera.bottom = -h / 2;
   camera.updateProjectionMatrix();
+
+  // Update pixel ratio (in case it changed, e.g. user moved window between displays)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  // Set the drawing buffer size (canvas.width and canvas.height attributes)
   renderer.setSize(w, h);
+
+  // Set the CSS display size of the canvas to match the logical width and height
+  renderer.domElement.style.width = `${w}px`;
+  renderer.domElement.style.height = `${h}px`;
 }
+// Make sure handleResize() is still called once initially
 handleResize();
 initCamera(renderer);
 
@@ -40,17 +57,17 @@ export function initMeshes() {
   // Create a checkerboard background (optional)
   const boardGeo = new THREE.PlaneGeometry(config.W, config.H);
   // Make sure board is flat on XZ plane
-  boardGeo.rotateX(-Math.PI / 2);
+  // boardGeo.rotateX(-Math.PI / 2);
 
   // Initialize player meshes
   initPlayerMeshes();
 
   // Create a plane geometry for cells - ensure they're square
-  const cellGeo = new THREE.PlaneGeometry(1, 1);
+  const cellGeo = new THREE.PlaneGeometry(1.02, 1.02);
   // Make sure cells are flat on XZ plane
   cellGeo.translate(0, 0, 0);
   cellGeo.rotateX(-Math.PI / 2);
-  cellGeo.rotateY(Math.PI / 2); // Fix sprite orientation
+  // cellGeo.rotateY(Math.PI / 2); // Fix sprite orientation
 
   // Load the sprite texture
   const spriteTexture = loadSpriteAtlas();
@@ -188,7 +205,7 @@ export function initMeshes() {
       
       // Define colors for each number and flag/mine
       vec3 flagColor = vec3(1.0, 0.0, 0.0);        // Red for flag (0,0)
-      vec3 emptyColor = vec3(0.8, 0.8, 0.8);       // Light gray for empty (3,0)
+      vec3 emptyColor = vec3(0.0, 0.0, 0.0);       // Light gray for empty (3,0)
       
       vec3 num1Color = vec3(0.0, 0.0, 1.0);        // Blue for 1
       vec3 num2Color = vec3(0.0, 0.5, 0.0);        // Green for 2

@@ -98,9 +98,13 @@ export async function initCamera(renderer: THREE.WebGLRenderer) {
     RIGHT: THREE.MOUSE.PAN,
   };
 
-  globalThis.addEventListener("wheel", (e) => zoomBy(e.deltaY > 0 ? 0.99 : 1.01), {
-    passive: true,
-  });
+  globalThis.addEventListener(
+    "wheel",
+    (e) => zoomBy(e.deltaY > 0 ? 0.99 : 1.01),
+    {
+      passive: true,
+    },
+  );
 }
 
 /* ------------------------------------------------------------------ */

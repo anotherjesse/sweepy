@@ -5,6 +5,8 @@ import { loadState, saveState, updatePreferences } from "./persist";
 import { fade, unfade } from "./gfx/ui";
 import * as config from "./config";
 import { Player } from "./players";
+const { NUMBER_MASK, REVEALED, FLAGGED, MINE, FINISHED } =
+    config.cellStateConstants;
 
 // Game state type
 type GameState = {
@@ -52,7 +54,7 @@ export function generateBoard(
             (simplex.noise2D(x * noiseScale, z * noiseScale) + 1) / 2; // Convert to 0-1 range
 
         if (noiseValue > threshold) {
-            states[i] |= config.cellStateConstants.MINE;
+            states[i] |= MINE;
             mineCount++;
         }
     }
@@ -76,8 +78,6 @@ export function generateBoard(
 
 // Calculate adjacent mines for each cell
 function calculateAdjacentMines() {
-    const { MINE, NUMBER_MASK } = config.cellStateConstants;
-
     for (let i = 0; i < config.N; i++) {
         if (states[i] & MINE) continue; // Skip if this is a mine
 
@@ -128,54 +128,6 @@ export const startTeleport = () => {
 };
 
 export const finishTeleport = () => {
-    // FIXME(ja): move the player to a random location on the board
-
-    // // Move the player to a random location on the board
-    // // Choose a new random position within a reasonable range (not the entire board)
-    // const viewRange = 100; // A more reasonable view range
-    // const randomX = Math.floor(Math.random() * (config.W - viewRange));
-    // const randomZ = Math.floor(Math.random() * (config.H - viewRange));
-    // const newCenterX = randomX + viewRange / 2;
-    // const newCenterZ = randomZ + viewRange / 2;
-
-    // // Ensure we have integer coordinates for the cursors
-    // const newCenterXInt = Math.floor(newCenterX);
-    // const newCenterZInt = Math.floor(newCenterZ);
-
-    // // Move both camera position and target coherently
-    // renderState.camera.position.set(
-    //     newCenterX,
-    //     renderState.camera.position.y,
-    //     newCenterZ,
-    // );
-    // renderState.controls.target.set(
-    //     newCenterX,
-    //     0,
-    //     newCenterZ,
-    // );
-    // // // Set zoom using the centralized zoom function
-    // // setZoom(20);
-
-    // // Update controls
-    // renderState.controls.update();
-
-    // // Move gamepad cursor to new position
-    // gamepadState.gamepadCursorX = newCenterXInt;
-    // gamepadState.gamepadCursorZ = newCenterZInt;
-    // gamepadState.gamepadCursorIndex = newCenterXInt + newCenterZInt * config.W;
-
-    // // Set the hovered cell index to match the new position
-    // gameState.hoveredCellIndex = newCenterXInt + newCenterZInt * config.W;
-
-    // // Move keyboard cursor to new position if the reset function is registered
-    // if (resetKeyboardCursorFn) {
-    //     resetKeyboardCursorFn(newCenterXInt, newCenterZInt);
-    // }
-
-    // console.log(
-    //     `Reset positions - Camera: (${newCenterX}, ${newCenterZ}), Cursor: (${newCenterXInt}, ${newCenterZInt})`,
-    // );
-
     unfade();
 
     gameState.disablePlayer = false;
@@ -193,17 +145,17 @@ export function revealCell(
     const state = states[index];
 
     if (
-        state & config.cellStateConstants.REVEALED ||
-        state & config.cellStateConstants.FLAGGED
+        state & REVEALED ||
+        state & FLAGGED
     ) return;
 
-    if (state & config.cellStateConstants.MINE) {
+    if (state & MINE) {
         return startTeleport();
     }
 
-    states[index] |= config.cellStateConstants.REVEALED;
+    states[index] |= REVEALED;
 
-    const adjacentMines = state & config.cellStateConstants.NUMBER_MASK;
+    const adjacentMines = state & NUMBER_MASK;
     if (adjacentMines === 0) {
         floodFillReveal(index);
     }
@@ -214,8 +166,6 @@ export function revealCell(
 }
 
 function floodFillReveal(index: number) {
-    const { NUMBER_MASK, REVEALED, FLAGGED } = config.cellStateConstants;
-
     const queue = [index];
     const visited = new Set([index]);
 
@@ -237,10 +187,10 @@ function floodFillReveal(index: number) {
 
                 const ni = nx + nz * config.W;
 
-                // Skip if already visited, revealed, or flagged
+                // Skip if already visited, revealed, flagged, or a mine
                 if (
                     visited.has(ni) || (states[ni] & REVEALED) ||
-                    (states[ni] & FLAGGED)
+                    (states[ni] & FLAGGED) || (states[ni] & MINE)
                 ) continue;
 
                 visited.add(ni);
@@ -258,71 +208,113 @@ function floodFillReveal(index: number) {
 
 // Function to check for mines that are completely boxed in
 export function checkForBoxedInMines() {
-    const { MINE, REVEALED, FLAGGED, FINISHED } = config.cellStateConstants;
+    console.log("checkForBoxedInMines");
+    const visitedMines = new Set<number>();
 
-    // Log constants for debugging
-    console.log("Constants:", {
-        MINE: MINE.toString(16),
-        REVEALED: REVEALED.toString(16),
-        FLAGGED: FLAGGED.toString(16),
-        FINISHED: FINISHED.toString(16),
-    });
+    const findLocalMines = (index: number) => {
+        const { MINE } = config.cellStateConstants;
+
+        const queue = [index];
+        const localMines = new Set<number>([index]);
+
+        while (queue.length > 0) {
+            const currentIndex = queue.shift()!;
+            const x = currentIndex % config.W;
+            const z = Math.floor(currentIndex / config.W);
+
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dz = -1; dz <= 1; dz++) {
+                    if (dx === 0 && dz === 0) continue;
+
+                    const nx = x + dx;
+                    const nz = z + dz;
+
+                    if (nx < 0 || nx >= config.W || nz < 0 || nz >= config.H) {
+                        continue;
+                    }
+
+                    const ni = nx + nz * config.W;
+
+                    // skip if not a mine, or already visited
+                    if (localMines.has(ni) || !(states[ni] & MINE)) continue;
+
+                    localMines.add(ni);
+                    visitedMines.add(ni);
+                    queue.push(ni);
+                }
+            }
+        }
+
+        return localMines;
+    };
 
     // First, let's check each mine individually
-    for (let i = 0; i < config.N; i++) {
+    for (let idx = 0; idx < config.N; idx++) {
+        if (visitedMines.has(idx)) continue;
+
         // Skip if not a mine or already marked as finished
-        if (!(states[i] & MINE) || (states[i] & FINISHED)) continue;
+        if (
+            !(states[idx] & MINE) || (states[idx] & FINISHED) ||
+            !(states[idx] & FLAGGED)
+        ) continue;
 
-        const x = i % config.W, z = Math.floor(i / config.W);
-        let allNonMinesRevealed = true;
+        // we are in an flagged mine that has not been marked as finished
+        visitedMines.add(idx);
 
-        // Check all 8 adjacent cells
-        for (let dx = -1; dx <= 1; dx++) {
-            for (let dz = -1; dz <= 1; dz++) {
-                if (dx === 0 && dz === 0) continue; // Skip self
+        const localMines = findLocalMines(idx);
 
-                const nx = x + dx;
-                const nz = z + dz;
+        const x = idx % config.W;
+        const z = Math.floor(idx / config.W);
 
-                // Check bounds
-                if (nx < 0 || nx >= config.W || nz < 0 || nz >= config.H) {
-                    continue;
-                }
+        // at least one of localMines is not finished!
+        // let's check if they are all flagged
+        const allFlagged = Array.from(localMines).every((mine) => {
+            const x = mine % config.W;
+            const z = Math.floor(mine / config.W);
 
-                const ni = nx + nz * config.W;
+            return states[mine] & FLAGGED;
+        });
 
-                // Only care about non-mine cells
-                if (!(states[ni] & MINE)) {
-                    // If any non-mine adjacent cell is not revealed, not boxed in
-                    if (!(states[ni] & REVEALED)) {
-                        allNonMinesRevealed = false;
-                        break;
+        if (!allFlagged) continue;
+
+        // check if all the cells +/- 1 in all directions are revealed
+        const allRevealed = Array.from(localMines).every((mine) => {
+            const x = mine % config.W;
+            const z = Math.floor(mine / config.W);
+
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dz = -1; dz <= 1; dz++) {
+                    if (dx === 0 && dz === 0) continue;
+
+                    const nx = x + dx;
+                    const nz = z + dz;
+
+                    if (nx < 0 || nx >= config.W || nz < 0 || nz >= config.H) {
+                        continue;
+                    }
+
+                    const ni = nx + nz * config.W;
+
+                    if (
+                        (!(states[ni] & MINE)) && !(states[ni] & REVEALED) ||
+                        ((states[ni] & MINE) && !(states[ni] & FLAGGED))
+                    ) {
+                        return false;
                     }
                 }
             }
-            if (!allNonMinesRevealed) break;
-        }
 
-        // If all non-mine cells around this mine are revealed, mark it as finished
-        if (allNonMinesRevealed) {
-            // Debug logging to show the state before and after
-            console.log(
-                `Mine at (${x},${z}) - Before: 0x${states[i].toString(16)}`,
-            );
-            states[i] |= FINISHED;
-            console.log(
-                `Mine at (${x},${z}) - After: 0x${
-                    states[i].toString(16)
-                }, FINISHED bit: 0x${FINISHED.toString(16)}`,
-            );
+            return true;
+        });
 
-            // Explicitly verify the FINISHED bit is set
-            if (!(states[i] & FINISHED)) {
-                console.error(
-                    `FAILED to set FINISHED bit on mine at (${x},${z})!`,
-                );
-            }
-        }
+        console.log("allRevealed", allRevealed);
+        if (!allRevealed) continue;
+
+        // all mines are flagged and all adjacent cells are revealed
+        // we can now finish the mine
+        localMines.forEach((mine) => {
+            states[mine] |= FINISHED;
+        });
     }
 
     // For debugging - count total finished mines
@@ -330,20 +322,6 @@ export function checkForBoxedInMines() {
     for (let i = 0; i < config.N; i++) {
         if ((states[i] & MINE) && (states[i] & FINISHED)) {
             finishedCount++;
-        }
-    }
-
-    console.log(`Total finished mines: ${finishedCount}`);
-
-    // Verify mesh update
-    console.log("After checkForBoxedInMines, first 10 mines states:");
-    let count = 0;
-    for (let i = 0; i < config.N && count < 10; i++) {
-        if (states[i] & MINE) {
-            console.log(
-                `Mine ${count} at index ${i}: 0x${states[i].toString(16)}`,
-            );
-            count++;
         }
     }
 }
@@ -379,11 +357,20 @@ export function saveGameData(seed: string | null = null) {
     updatePreferences({ seed: gameState.currentSeed });
 }
 
+const makeGameStateValid = (state: Uint8Array | null): Uint8Array | null => {
+    if (!state) return null;
+    const validState = new Uint8Array(state);
+    for (let i = 0; i < config.N; i++) {
+        validState[i] &= ~FINISHED;
+    }
+    return validState;
+};
+
 // Load game data from IndexedDB
 export async function loadGameData(): Promise<boolean> {
     // Load game state
-    const savedState = await loadState();
-
+    let savedState = await loadState();
+    savedState = makeGameStateValid(savedState);
     // Try to load preferences (including seed)
     const { loadPreferences } = await import("./persist");
     const prefs = await loadPreferences();
@@ -392,6 +379,7 @@ export async function loadGameData(): Promise<boolean> {
     if (savedState) {
         // Copy saved state to our game state array
         states.set(savedState);
+        checkForBoxedInMines();
 
         // Try to get seed from preferences first, then fallback to localStorage
         const savedSeed = prefs?.seed;

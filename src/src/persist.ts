@@ -14,7 +14,7 @@ export interface UserPreferences {
 }
 
 // Mark state as dirty for saving in the next cycle
-export function saveState({ buffer }: { buffer:  ArrayBufferLike }) {
+export function saveState({ buffer }: { buffer: ArrayBufferLike }) {
   dirty = buffer;
 }
 

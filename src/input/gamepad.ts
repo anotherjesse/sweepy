@@ -63,16 +63,16 @@ function connectGamepad(e: GamepadEvent) {
 
       // Only emit actions when state changes
       if ((gamepad.buttons[14]?.pressed || axX === -1) && mem.axes[0] !== -1) {
-        out.dZ = 1;
-      }
-      if ((gamepad.buttons[15]?.pressed || axX === 1) && mem.axes[0] !== 1) {
-        out.dZ = -1;
-      }
-      if ((gamepad.buttons[12]?.pressed || axY === -1) && mem.axes[1] !== -1) {
         out.dX = -1;
       }
-      if ((gamepad.buttons[13]?.pressed || axY === 1) && mem.axes[1] !== 1) {
+      if ((gamepad.buttons[15]?.pressed || axX === 1) && mem.axes[0] !== 1) {
         out.dX = 1;
+      }
+      if ((gamepad.buttons[12]?.pressed || axY === -1) && mem.axes[1] !== -1) {
+        out.dZ = -1;
+      }
+      if ((gamepad.buttons[13]?.pressed || axY === 1) && mem.axes[1] !== 1) {
+        out.dZ = 1;
       }
 
       // BUTTONS

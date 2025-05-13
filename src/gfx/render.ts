@@ -208,13 +208,13 @@ export function initMeshes() {
       vec3 emptyColor = vec3(0.0, 0.0, 0.0);       // Light gray for empty (3,0)
       
       vec3 num1Color = vec3(0.0, 0.0, 1.0);        // Blue for 1
-      vec3 num2Color = vec3(0.0, 0.5, 0.0);        // Green for 2
-      vec3 num3Color = vec3(1.0, 0.5, 0.0);        // Red for 3
-      vec3 num4Color = vec3(0.0, 0.0, 0.5);        // Dark Blue for 4
-      vec3 num5Color = vec3(0.5, 0.0, 0.0);        // Brown for 5
-      vec3 num6Color = vec3(0.0, 0.5, 0.5);        // Teal for 6
-      vec3 num7Color = vec3(0.0, 0.0, 0.0);        // Black for 7
-      vec3 num8Color = vec3(0.5, 0.5, 0.5);        // Gray for 8
+      vec3 num2Color = vec3(0.0, 1.0, 0.0);        // Green for 2
+      vec3 num3Color = vec3(1.0, 0.0, 0.0);        // Red for 3
+      vec3 num4Color = vec3(0.0, 0.5, 1.0);        // light blue for 4
+      vec3 num5Color = vec3(0.5, 1.0, 0.0);        // Brown for 5
+      vec3 num6Color = vec3(1.0, 0.5, 0.0);        // Teal for 6
+      vec3 num7Color = vec3(0.5, 0.5, 1.0);        // Black for 7
+      vec3 num8Color = vec3(1.0, 0.0, 0.5);        // Gray for 8
       
       // Default to black
       vec3 finalColor = vec3(0.0, 0.0, 0.0);

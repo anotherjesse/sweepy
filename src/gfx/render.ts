@@ -201,15 +201,14 @@ export function initMeshes() {
       float spriteX = floor(vUv.x * 4.0);
       float spriteY = floor(vUv.y * 3.0);
       
-      // Skip coloring if fully transparent
-      if (texColor.a < 0.1) {
-        gl_FragColor = texColor;
-        return;
-      }
+      // Determine base background color
+      // Hidden or flagged cells retain a black background, all others use gray
+      bool unrevealedTile = (spriteY == 0.0) && (spriteX == 3.0 || spriteX == 0.0);
+      vec3 baseColor = unrevealedTile ? vec3(0.0) : vec3(0.5);
       
       // Define colors for each number and flag/mine
       vec3 flagColor = vec3(1.0, 0.0, 0.0);        // Red for flag (0,0)
-      vec3 emptyColor = vec3(0.0, 0.0, 0.0);       // Light gray for empty (3,0)
+      vec3 emptyColor = vec3(0.5, 0.5, 0.5);       // 50% gray for empty (3,0)
       
       vec3 num1Color = vec3(0.0, 0.0, 1.0);        // Blue for 1
       vec3 num2Color = vec3(0.0, 1.0, 0.0);        // Green for 2
@@ -247,8 +246,9 @@ export function initMeshes() {
         else if (spriteX == 3.0) finalColor = num8Color;
       }
       
-      // Apply color based on texture intensity
-      gl_FragColor = vec4(finalColor * texColor.r, texColor.a);
+      // Mix sprite color with the background based on intensity
+      vec3 color = mix(baseColor, finalColor, texColor.r);
+      gl_FragColor = vec4(color, 1.0);
     }
     `,
     side: THREE.DoubleSide,

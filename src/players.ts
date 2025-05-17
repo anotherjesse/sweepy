@@ -34,6 +34,12 @@ export type Player = {
 
 export const players: Record<string, Player> = {};
 
+function randomBrightColor(): number {
+  const c = new THREE.Color();
+  c.setHSL(Math.random(), 1, 0.5);
+  return c.getHex();
+}
+
 export function teleportAllPlayers(dX: number, dZ: number) {
   for (const player of Object.values(players)) {
     player.x = (player.x + dX + config.W) % config.W;
@@ -93,7 +99,7 @@ export function addPlayer(
     disabled: false,
     x: spawnX,
     z: spawnZ,
-    color: color ?? Math.floor(Math.random() * 0xffffff),
+    color: color ?? randomBrightColor(),
     mesh: undefined,
   };
 

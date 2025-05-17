@@ -1,6 +1,6 @@
 import seedrandom from "seedrandom";
 import SimplexNoise from "simplex-noise";
-import { updateMeshes } from "./gfx/render";
+import { updateMeshes, queueTileReveal } from "./gfx/render";
 import { loadState, saveState, updatePreferences } from "./persist";
 import { fade, unfade } from "./gfx/ui";
 import * as config from "./config";
@@ -156,18 +156,22 @@ export function revealCell(
     states[index] |= REVEALED;
 
     const adjacentMines = state & NUMBER_MASK;
+    const revealIndices: number[] = [index];
     if (adjacentMines === 0) {
-        floodFillReveal(index);
+        revealIndices.push(...floodFillReveal(index));
     }
+
+    queueTileReveal(revealIndices);
 
     checkForBoxedInMines();
     updateMeshes();
     saveState(states);
 }
 
-function floodFillReveal(index: number) {
+function floodFillReveal(index: number): number[] {
     const queue = [index];
     const visited = new Set([index]);
+    const revealed: number[] = [];
 
     while (queue.length > 0) {
         const currentIndex = queue.shift()!;
@@ -196,6 +200,7 @@ function floodFillReveal(index: number) {
                 visited.add(ni);
 
                 states[ni] |= REVEALED;
+                revealed.push(ni);
 
                 const adjacentMinesNi = states[ni] & NUMBER_MASK;
                 if (adjacentMinesNi === 0) {
@@ -204,6 +209,7 @@ function floodFillReveal(index: number) {
             }
         }
     }
+    return revealed;
 }
 
 // Function to check for mines that are completely boxed in

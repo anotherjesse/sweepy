@@ -10,5 +10,6 @@ for (const file of files) {
   text = text.replace(/\.\/config(?!(\.js))/g, './config.js');
   text = text.replace(/\.\/input\/gamepad(?!(\.js))/g, './input/gamepad.js');
   text = text.replace(/\.\.\/players(?!(\.js))/g, '../players.js');
+  text = text.replace(/\.\/eventBus(?!(\.js))/g, './eventBus.js');
   fs.writeFileSync(file, text);
 }

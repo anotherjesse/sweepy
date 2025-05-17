@@ -4,6 +4,7 @@ import { zoomBy } from "./gfx/camera";
 import { updateMeshes } from "./gfx/render";
 import { updateJoinInstructions } from "./gfx/ui";
 import * as THREE from "three";
+import { on, TELEPORT_PLAYERS } from "./eventBus";
 
 export type Actions = {
   dX?: number;
@@ -28,6 +29,17 @@ export type Player = {
 };
 
 export const players: Record<string, Player> = {};
+
+export function teleportAllPlayers(dX: number, dZ: number) {
+  for (const player of Object.values(players)) {
+    player.x = (player.x + dX + config.W) % config.W;
+    player.z = (player.z + dZ + config.H) % config.H;
+    if (player.mesh) {
+      player.mesh.position.set(player.x, 0.4, player.z);
+    }
+  }
+}
+on(TELEPORT_PLAYERS, ({ dX, dZ }) => teleportAllPlayers(dX, dZ));
 
 export function addPlayer(
   { name, x, z, color, id, poll }: {

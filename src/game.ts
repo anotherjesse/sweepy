@@ -6,6 +6,7 @@ import { fade, unfade } from "./gfx/ui";
 import * as config from "./config";
 import { Player } from "./players";
 import { rumbleAllGamepads } from "./input/gamepad";
+import { emit, TELEPORT_PLAYERS } from "./eventBus";
 const { NUMBER_MASK, REVEALED, FLAGGED, MINE, FINISHED } =
     config.cellStateConstants;
 
@@ -123,6 +124,9 @@ function calculateAdjacentMines() {
 export const startTeleport = () => {
     gameState.disablePlayer = true;
     fade();
+
+    // Shift all players by a fixed offset and wrap around the board
+emit(TELEPORT_PLAYERS, { dX: Math.floor(Math.random() * config.W), dZ: Math.floor(Math.random() * config.H) });
 
     // Allow restart after a delay
     setTimeout(finishTeleport, 1000);

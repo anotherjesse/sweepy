@@ -1,5 +1,4 @@
 import { get, set } from "idb-keyval";
-import { states } from "./game";
 
 // Track pending changes to be saved
 let dirty: ArrayBuffer | ArrayBufferLike | null = null;

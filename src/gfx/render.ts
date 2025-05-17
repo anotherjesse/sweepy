@@ -3,6 +3,7 @@ import { gameState, states } from "../game";
 import * as config from "../config";
 import { camera, initCamera, updateCamera } from "./camera";
 import { Player, players } from "../players";
+import { on, PLAYER_ADDED, PLAYER_REMOVED } from "../eventBus";
 
 let cellMesh: THREE.InstancedMesh | null = null;
 const scene = new THREE.Scene();
@@ -40,6 +41,9 @@ export function handleResize() {
 // Make sure handleResize() is still called once initially
 handleResize();
 initCamera(renderer);
+
+on(PLAYER_ADDED, updateMeshes);
+on(PLAYER_REMOVED, updateMeshes);
 
 // Load sprite atlas
 function loadSpriteAtlas(): THREE.Texture {

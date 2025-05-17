@@ -2,6 +2,7 @@ import { gameState, generateBoard, states, getFinishedMinesCount } from "../game
 import { updateMeshes } from "./render";
 import * as config from "../config";
 import { players } from "../players";
+import { on, PLAYER_ADDED, PLAYER_REMOVED } from "../eventBus";
 
 let fadeOverlay: HTMLDivElement | null = null;
 let instructionsOverlay: HTMLDivElement | null = null;
@@ -122,6 +123,9 @@ export function initUI() {
   // Initial check for players
   updateJoinInstructions();
   updateFinishedMineCount();
+
+  on(PLAYER_ADDED, updateJoinInstructions);
+  on(PLAYER_REMOVED, updateJoinInstructions);
 }
 
 // Function to update hover info for debug mode

@@ -9,7 +9,7 @@ const revealAlphas = new Float32Array(config.N).fill(1);
 const revealQueue: number[] = [];
 type RevealAnim = { index: number; start: number };
 const activeReveals: RevealAnim[] = [];
-const REVEAL_DURATION = 300; // ms
+const REVEAL_DURATION = 3000; // ms
 const scene = new THREE.Scene();
 export const renderer = new THREE.WebGLRenderer({
   antialias: false,

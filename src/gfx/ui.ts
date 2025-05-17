@@ -1,10 +1,11 @@
-import { gameState, generateBoard, states } from "../game";
+import { gameState, generateBoard, states, getFinishedMinesCount } from "../game";
 import { updateMeshes } from "./render";
 import * as config from "../config";
 import { players } from "../players";
 
 let fadeOverlay: HTMLDivElement | null = null;
 let instructionsOverlay: HTMLDivElement | null = null;
+let finishedCountEl: HTMLParagraphElement | null = null;
 
 // Function to setup fade overlay
 export function setupFadeOverlay() {
@@ -120,6 +121,7 @@ export function initUI() {
 
   // Initial check for players
   updateJoinInstructions();
+  updateFinishedMineCount();
 }
 
 // Function to update hover info for debug mode
@@ -145,6 +147,15 @@ export function clearHoverInfo() {
   }
 }
 
+export function updateFinishedMineCount() {
+  if (!finishedCountEl) {
+    finishedCountEl = document.getElementById("finishedCount") as HTMLParagraphElement | null;
+  }
+  if (finishedCountEl) {
+    finishedCountEl.textContent = `Finished mines: ${getFinishedMinesCount()}`;
+  }
+}
+
 export function toggleUI() {
   const ui = document.getElementById("ui");
   if (ui) {
@@ -153,6 +164,7 @@ export function toggleUI() {
     // If UI is now visible, show player info
     if (ui.classList.contains("visible")) {
       updatePlayerInfo();
+      updateFinishedMineCount();
     }
   }
 }

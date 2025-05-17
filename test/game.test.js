@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as config from '../dist/config.js';
 import * as game from '../dist/game.js';
 
-const { NUMBER_MASK, REVEALED, FLAGGED, MINE } = config.cellStateConstants;
+const { NUMBER_MASK, REVEALED, FLAGGED, MINE, FINISHED } = config.cellStateConstants;
 
 function computeNumbers() {
   const { W, H, N } = config;
@@ -55,4 +55,10 @@ test('toggleFlag flips flag state', () => {
   assert.ok(game.states[8] & FLAGGED);
   game.toggleFlag(player);
   assert.equal(game.states[8] & FLAGGED, 0);
+});
+
+test('getFinishedMinesCount counts finished mines', () => {
+  game.states[0] = MINE | FINISHED;
+  game.states[1] = MINE;
+  assert.equal(game.getFinishedMinesCount(), 1);
 });

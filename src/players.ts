@@ -3,6 +3,7 @@ import { revealCell, toggleFlag } from "./game";
 import { zoomBy } from "./gfx/camera";
 import { updateMeshes } from "./gfx/render";
 import { updateJoinInstructions } from "./gfx/ui";
+import * as THREE from "three";
 
 export type Actions = {
   dX?: number;

@@ -73,12 +73,6 @@ export function generateBoard(
     updateMeshes();
     console.log("Board generated, meshes updated");
 
-    import("./gfx/ui").then((ui) => {
-        if (typeof ui.updateFinishedMineCount === "function") {
-            ui.updateFinishedMineCount();
-        }
-    });
-
     // Save the current seed and game state
     saveGameData(seed);
 }
@@ -323,12 +317,13 @@ export function checkForBoxedInMines() {
         });
     }
 
-    // Update finished mines count in the UI
-    import("./gfx/ui").then((ui) => {
-        if (typeof ui.updateFinishedMineCount === "function") {
-            ui.updateFinishedMineCount();
+    // For debugging - count total finished mines
+    let finishedCount = 0;
+    for (let i = 0; i < config.N; i++) {
+        if ((states[i] & MINE) && (states[i] & FINISHED)) {
+            finishedCount++;
         }
-    });
+    }
 }
 
 // Toggle flag on a cell
@@ -385,11 +380,6 @@ export async function loadGameData(): Promise<boolean> {
         // Copy saved state to our game state array
         states.set(savedState);
         checkForBoxedInMines();
-        import("./gfx/ui").then((ui) => {
-            if (typeof ui.updateFinishedMineCount === "function") {
-                ui.updateFinishedMineCount();
-            }
-        });
 
         // Try to get seed from preferences first, then fallback to localStorage
         const savedSeed = prefs?.seed;

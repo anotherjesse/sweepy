@@ -117,9 +117,9 @@ function pollPlayer(player: Player) {
     player.z += actions.dZ;
   }
 
-  // Clamp player position to grid bounds
-  player.x = Math.max(0, Math.min(config.W - 1, player.x));
-  player.z = Math.max(0, Math.min(config.H - 1, player.z));
+  // Wrap player position around the grid bounds
+  player.x = (player.x + config.W) % config.W;
+  player.z = (player.z + config.H) % config.H;
 
   if (actions.revealCell) {
     revealCell(player);

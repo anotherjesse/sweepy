@@ -184,8 +184,15 @@ export function initMeshes() {
       vec2 tileSz  = vec2(1.0/TILE_COLS, 1.0/TILE_ROWS);
       vUv = tileUV * tileSz + baseUv * tileSz;
       
-      // standard instancing logic
+      // standard instancing logic with toroidal wrapping
       vec3 pos = position + vec3(aOffset.x, 0.0, aOffset.y);
+
+      vec3 cam = cameraPosition;
+      if (pos.x - cam.x > GRID_W / 2.0) pos.x -= GRID_W;
+      if (pos.x - cam.x < -GRID_W / 2.0) pos.x += GRID_W;
+      if (pos.z - cam.z > GRID_H / 2.0) pos.z -= GRID_H;
+      if (pos.z - cam.z < -GRID_H / 2.0) pos.z += GRID_H;
+
       gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
     }
     `,
@@ -256,7 +263,7 @@ export function initMeshes() {
 
   // Create instanced mesh for cells
   const newCellMesh = new THREE.InstancedMesh(cellGeo, cellMat, config.N);
-  newCellMesh.frustumCulled = true; // Only render visible cells
+  newCellMesh.frustumCulled = false; // Disable culling to allow wrapping
 
   // Update instance matrices
   const dummy = new THREE.Object3D();

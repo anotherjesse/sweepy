@@ -1,4 +1,5 @@
 import { type Actions, addPlayer, removePlayer } from "../players";
+import * as config from "../config";
 
 // FIXME(ja): add support for vibration/rumble when you hit a mine
 
@@ -20,6 +21,8 @@ function axisDir(v: number): -1 | 0 | 1 {
   if (v > 0.5) return 1;
   return 0;
 }
+
+const GAMEPAD_ZOOM_SCALE = 0.1;
 
 function createPoll(id: string): () => Actions {
   return () => {
@@ -56,8 +59,12 @@ function createPoll(id: string): () => Actions {
       out.dZ = 1;
     }
 
-    if (gamepad.buttons[4]?.pressed && !mem.btn[4]) out.zoomBy = 0.98;
-    if (gamepad.buttons[5]?.pressed && !mem.btn[5]) out.zoomBy = 1.02;
+    if (gamepad.buttons[4]?.pressed) {
+      out.zoomBy = 1 + (config.ZOOM_OUT_FACTOR - 1) * GAMEPAD_ZOOM_SCALE;
+    }
+    if (gamepad.buttons[5]?.pressed) {
+      out.zoomBy = 1 + (config.ZOOM_IN_FACTOR - 1) * GAMEPAD_ZOOM_SCALE;
+    }
     if (gamepad.buttons[0]?.pressed && !mem.btn[0]) out.revealCell = true;
     if (gamepad.buttons[1]?.pressed && !mem.btn[1]) out.toggleFlag = true;
 

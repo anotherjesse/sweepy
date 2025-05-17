@@ -37,7 +37,7 @@ export function setupFadeOverlay() {
   instructionsOverlay.style.opacity = "0";
   instructionsOverlay.style.transition = "opacity 0.5s ease";
   instructionsOverlay.innerHTML = `
-        <h2>Press arrow keys, space, enter, or pair a gamepad to join</h2>
+        <h2>Press arrow keys, space, enter, or press A/B on a gamepad to join</h2>
         <p>WASD/Arrows: Move</p>
         <p>Space/Enter: Reveal cell</p>
         <p>F: Place flag</p>

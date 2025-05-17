@@ -2,7 +2,7 @@ import { animate, initMeshes, renderer } from "./gfx/render";
 import { fade, initUI, setupFadeOverlay, unfade } from "./gfx/ui";
 import { setupColorScheme } from "./gfx/darkmode";
 import { generateBoard, loadGameData } from "./game";
-import { initGamepads } from "./input/gamepad";
+import { initGamepads, pollGamepads } from "./input/gamepad";
 import { initKeyboard } from "./input/keyboard";
 import { pollPlayers } from "./players";
 
@@ -27,7 +27,10 @@ globalThis.addEventListener("DOMContentLoaded", async () => {
   // get saved game, fallback to generating a new board
   await loadGameData() || generateBoard();
 
-  animate(pollPlayers);
+  animate(() => {
+    pollGamepads();
+    pollPlayers();
+  });
 
   unfade();
 });

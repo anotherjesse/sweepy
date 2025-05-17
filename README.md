@@ -16,6 +16,7 @@ A large minesweeper-style board renderer with procedural generation.
 - right click a cell to toggle a flag
 - left click a cell to reveal it
 - if you die, you have to wait a few seconds before you can play again
+- gamepads with vibration will rumble when any player hits a mine
 - the game is generated procedurally, so no two games are the same
 - the seed should be stored in the url as a hash link - and read on page load
 - when all the a flag is added

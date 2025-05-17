@@ -22,3 +22,4 @@ export function emit(event: string, detail?: any) {
 export const TELEPORT_PLAYERS = "teleportPlayers";
 export const PLAYER_ADDED = "playerAdded";
 export const PLAYER_REMOVED = "playerRemoved";
+export const RUMBLE_GAMEPADS = "rumbleGamepads";

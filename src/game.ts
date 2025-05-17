@@ -5,8 +5,7 @@ import { loadState, saveState, updatePreferences } from "./persist";
 import { fade, unfade } from "./gfx/ui";
 import * as config from "./config";
 import { Player } from "./players";
-import { rumbleAllGamepads } from "./input/gamepad";
-import { emit, TELEPORT_PLAYERS } from "./eventBus";
+import { emit, TELEPORT_PLAYERS, RUMBLE_GAMEPADS } from "./eventBus";
 const { NUMBER_MASK, REVEALED, FLAGGED, MINE, FINISHED } =
     config.cellStateConstants;
 
@@ -155,7 +154,7 @@ export function revealCell(
     ) return;
 
     if (state & MINE) {
-        rumbleAllGamepads();
+        emit(RUMBLE_GAMEPADS);
         return startTeleport();
     }
 

@@ -1,5 +1,6 @@
-import { type Actions, addPlayer, removePlayer } from "../players";
+import { type Actions, addPlayer, removePlayer, players } from "../players";
 import * as config from "../config";
+import { on, RUMBLE_GAMEPADS } from "../eventBus";
 
 // Support vibration/rumble via the Gamepad API
 
@@ -134,6 +135,7 @@ export function rumbleAllGamepads(
   const pads = globalThis.navigator.getGamepads();
   for (const pad of pads) {
     if (!pad) continue;
+    if (!players[pad.id]) continue;
     const actuator: any =
       (pad as any).vibrationActuator || pad.hapticActuators?.[0];
     if (!actuator) continue;
@@ -154,3 +156,6 @@ export function rumbleAllGamepads(
     }
   }
 }
+
+// Listen for rumble requests via the event bus
+on(RUMBLE_GAMEPADS, () => rumbleAllGamepads());

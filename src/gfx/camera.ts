@@ -24,7 +24,7 @@ const PAD = 2; // Extra cells around the bounding box
 const ZOOM_EPS = 1e-3; // Threshold before we call updateProjection
 
 /** value the *user* asked for (mouse wheel / gamepad shoulder etc.)  */
-let requestedZoom = 20;
+let requestedZoom = (config.ZOOM_MIN + config.ZOOM_MAX) / 2;
 
 /* ------------------------------------------------------------------ */
 /*  Camera + controls skeleton (mostly as before)                      */
@@ -78,7 +78,7 @@ export async function initCamera(renderer: THREE.WebGLRenderer) {
   const startX = prefs?.cameraPosition?.x ?? config.W / 2;
   const startZ = prefs?.cameraPosition?.z ?? config.H / 2;
 
-  requestedZoom = prefs?.zoom ?? 20;
+  requestedZoom = prefs?.zoom ?? (config.ZOOM_MIN + config.ZOOM_MAX) / 2;
 
   camera.position.set(startX, 100, startZ);
   camera.lookAt(startX, 0, startZ);

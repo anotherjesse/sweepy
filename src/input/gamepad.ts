@@ -1,7 +1,7 @@
 import { type Actions, addPlayer, removePlayer } from "../players";
 import * as config from "../config";
 
-// FIXME(ja): add support for vibration/rumble when you hit a mine
+// Support vibration/rumble via the Gamepad API
 
 export type GamepadButton = {
   pressed: boolean;
@@ -123,4 +123,34 @@ function disconnectGamepad(e: GamepadEvent) {
   console.log("Gamepad disconnected:", e.gamepad);
   pendingGamepads.delete(e.gamepad.id);
   removePlayer({ id: e.gamepad.id });
+}
+
+// Trigger vibration on all connected gamepads if supported
+export function rumbleAllGamepads(
+  duration = 300,
+  strong = 1.0,
+  weak = 1.0,
+) {
+  const pads = globalThis.navigator.getGamepads();
+  for (const pad of pads) {
+    if (!pad) continue;
+    const actuator: any =
+      (pad as any).vibrationActuator || pad.hapticActuators?.[0];
+    if (!actuator) continue;
+
+    try {
+      if ("playEffect" in actuator) {
+        actuator.playEffect("dual-rumble", {
+          startDelay: 0,
+          duration,
+          strongMagnitude: strong,
+          weakMagnitude: weak,
+        });
+      } else if ("pulse" in actuator) {
+        actuator.pulse(strong, duration);
+      }
+    } catch (err) {
+      console.error("Gamepad rumble failed", err);
+    }
+  }
 }

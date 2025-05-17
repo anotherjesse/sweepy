@@ -395,3 +395,15 @@ export async function loadGameData(): Promise<boolean> {
 
     return false;
 }
+
+// Count mines that have been flagged and marked as finished
+export function getFinishedMinesCount(): number {
+    const { MINE, FINISHED } = config.cellStateConstants;
+    let count = 0;
+    for (let i = 0; i < config.N; i++) {
+        if ((states[i] & MINE) && (states[i] & FINISHED)) {
+            count++;
+        }
+    }
+    return count;
+}

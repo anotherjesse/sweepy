@@ -112,3 +112,8 @@ button:hover {
   margin: 4px 0;
   font-size: 14px;
 }
+
+#finishedCount {
+  margin-top: 8px;
+  font-weight: bold;
+}

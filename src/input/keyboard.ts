@@ -6,7 +6,6 @@ import {
   type Actions,
   addPlayer,
   Player,
-  players,
   removePlayer,
 } from "../players";
 
@@ -20,6 +19,16 @@ export function initKeyboard() {
   globalThis.addEventListener("keydown", onKeyDown);
   globalThis.addEventListener("keyup", onKeyUp);
 }
+
+// Keys that allow a keyboard player to join
+const joinKeys = new Set([
+  "Space",
+  "Enter",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+]);
 
 // Handler for keydown events
 export function onKeyDown(event: KeyboardEvent) {
@@ -61,6 +70,22 @@ export function onKeyDown(event: KeyboardEvent) {
   // Skip if key is already pressed (avoid repeat)
   if (activeKeys.has(event.code)) return;
 
+  // If no keyboard player exists, allow join keys to create one without
+  // triggering actions for this press
+  if (!player && joinKeys.has(event.code)) {
+    player = addPlayer({
+      id: "keyboard",
+      name: "Keyboard",
+      poll: () => {
+        const rv = actions;
+        actions = {};
+        return rv;
+      },
+    });
+    activeKeys.add(event.code);
+    return;
+  }
+
   // Add key to active keys
   activeKeys.add(event.code);
 
@@ -101,7 +126,7 @@ export function onKeyDown(event: KeyboardEvent) {
   }
 
   // Only add keyboard player if it doesn't already exist
-  if (Object.keys(actions).length > 0 && !players["keyboard"]) {
+  if (Object.keys(actions).length > 0 && !player) {
     player = addPlayer({
       id: "keyboard",
       name: "Keyboard",

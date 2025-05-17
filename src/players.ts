@@ -55,6 +55,34 @@ export function addPlayer(
     poll: () => Actions;
   },
 ): Player {
+  let spawnX = x;
+  let spawnZ = z;
+
+  if ((spawnX === undefined || spawnZ === undefined) && Object.keys(players).length > 0) {
+    let sumX = 0;
+    let sumZ = 0;
+    const list = Object.values(players);
+    for (const p of list) {
+      sumX += p.x;
+      sumZ += p.z;
+    }
+    const centroidX = sumX / list.length;
+    const centroidZ = sumZ / list.length;
+
+    if (spawnX === undefined) {
+      spawnX = Math.round(centroidX + (Math.random() * 20 - 10));
+    }
+    if (spawnZ === undefined) {
+      spawnZ = Math.round(centroidZ + (Math.random() * 20 - 10));
+    }
+  }
+
+  spawnX = spawnX ?? config.W / 2;
+  spawnZ = spawnZ ?? config.H / 2;
+
+  spawnX = Math.max(0, Math.min(config.W - 1, spawnX));
+  spawnZ = Math.max(0, Math.min(config.H - 1, spawnZ));
+
   players[id] = {
     id,
     name,
@@ -63,8 +91,8 @@ export function addPlayer(
     bombsDefused: 0,
     flagsPlaced: 0,
     disabled: false,
-    x: x ?? config.W / 2,
-    z: z ?? config.H / 2,
+    x: spawnX,
+    z: spawnZ,
     color: color ?? Math.floor(Math.random() * 0xffffff),
     mesh: undefined,
   };

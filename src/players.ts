@@ -1,10 +1,14 @@
 import * as config from "./config";
 import { revealCell, toggleFlag } from "./game";
 import { zoomBy } from "./gfx/camera";
-import { updateMeshes } from "./gfx/render";
-import { updateJoinInstructions } from "./gfx/ui";
 import * as THREE from "three";
-import { on, TELEPORT_PLAYERS } from "./eventBus";
+import {
+  on,
+  emit,
+  TELEPORT_PLAYERS,
+  PLAYER_ADDED,
+  PLAYER_REMOVED,
+} from "./eventBus";
 
 export type Actions = {
   dX?: number;
@@ -65,8 +69,7 @@ export function addPlayer(
     mesh: undefined,
   };
 
-  updateMeshes();
-  updateJoinInstructions();
+  emit(PLAYER_ADDED, players[id]);
 
   return players[id];
 }
@@ -84,8 +87,7 @@ export function removePlayer({ id }: { id: string }) {
 
   delete players[id];
 
-  // Update instructions overlay when a player is removed
-  import("./gfx/ui").then((ui) => ui.updateJoinInstructions());
+  emit(PLAYER_REMOVED, { id });
 }
 
 export function pollPlayers() {

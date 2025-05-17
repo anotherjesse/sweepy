@@ -126,7 +126,7 @@ export const startTeleport = () => {
     fade();
 
     // Shift all players by a fixed offset and wrap around the board
-    emit(TELEPORT_PLAYERS, { dX: 10, dZ: 10 });
+emit(TELEPORT_PLAYERS, { dX: Math.floor(Math.random() * config.W), dZ: Math.floor(Math.random() * config.H) });
 
     // Allow restart after a delay
     setTimeout(finishTeleport, 1000);

@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch",
-    "pretest": "tsc --noEmit false --allowImportingTsExtensions false --outDir dist && cp test/stubs/configStub.js dist/config.js && cp test/stubs/renderStub.js dist/gfx/render.js && cp test/stubs/persistStub.js dist/persist.js && cp test/stubs/playersStub.js dist/players.js && cp test/stubs/uiStub.js dist/gfx/ui.js && node test/fix-imports.cjs",
+    "pretest": "tsc --noEmit false --allowImportingTsExtensions false --outDir dist && cp test/stubs/configStub.js dist/config.js && cp test/stubs/renderStub.js dist/gfx/render.js && cp test/stubs/persistStub.js dist/persist.js && cp test/stubs/uiStub.js dist/gfx/ui.js && cp test/stubs/cameraStub.js dist/gfx/camera.js && node test/fix-imports.cjs",
     "test": "node --test"
   },
   "dependencies": {

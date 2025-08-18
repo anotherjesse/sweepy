@@ -4,7 +4,7 @@ export default {
   server: {
     host: '0.0.0.0',  // Required for container access
     port: 5173,
-    allowedHosts: 'all',
+    allowedHosts: true,
   },
   build: {
     outDir: "../dist",

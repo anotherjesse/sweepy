@@ -116,14 +116,17 @@ A large minesweeper-style board renderer with procedural generation.
 
 ## Project Setup
 
-We use pnpm to install the dependencies.
+This repo uses `mise` to provide the Node runtime declared in
+[`mise.toml`](mise.toml) and `npm` for dependencies and scripts.
 
 ```bash
-pnpm install
+mise trust
+mise install
+mise exec -- npm install
 ```
 
 And to run the dev server in watch mode:
 
 ```bash
-pnpm dev
+mise exec -- npm run dev
 ```

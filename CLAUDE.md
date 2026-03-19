@@ -5,9 +5,12 @@ code in this repository.
 
 ## Build Commands
 
-- `pnpm install` - Install dependencies
-- `pnpm typecheck` - Typecheck the code
-- `pnpm build` - Build for production
+Run `mise trust && mise install` once per clone to provision the repo's Node
+runtime from `mise.toml`.
+
+- `mise exec -- npm install` - Install dependencies
+- `mise exec -- npm run typecheck` - Typecheck the code
+- `mise exec -- npm run build` - Build for production
 
 ## Code Style Guidelines
 

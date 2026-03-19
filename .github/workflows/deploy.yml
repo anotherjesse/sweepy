@@ -15,14 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4 # pull your code
-      - uses: pnpm/action-setup@v4 # install pnpm 10.x
-        with: { version: 10, run_install: false }
-      - uses: actions/setup-node@v4 # install Node & cache pnpm
+      - uses: actions/setup-node@v4 # install Node & cache npm
         with:
-          node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run build --base=/sweepy/
+          node-version: lts/*
+          cache: npm
+      - run: npm ci
+      - run: npm run build -- --base=/sweepy/
       - uses: actions/upload-pages-artifact@v3 # pack the ./dist folder
         with: { path: ./dist }
 

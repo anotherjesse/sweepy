@@ -7,6 +7,25 @@ import { on, PLAYER_ADDED, PLAYER_REMOVED } from "../eventBus";
 
 let cellMesh: THREE.InstancedMesh | null = null;
 const scene = new THREE.Scene();
+
+// Temporary ripple meshes shown when players spawn
+type SpawnRipple = { mesh: THREE.Mesh; start: number };
+const spawnRipples: SpawnRipple[] = [];
+
+function addSpawnRipple(x: number, z: number, color: number) {
+  const geo = new THREE.RingGeometry(0.4, 0.6, 32);
+  geo.rotateX(-Math.PI / 2);
+  const mat = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0.8,
+    side: THREE.DoubleSide,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x + 0.5, 0.05, z + 0.5);
+  scene.add(mesh);
+  spawnRipples.push({ mesh, start: Date.now() });
+}
 export const renderer = new THREE.WebGLRenderer({
   antialias: false,
   powerPreference: "high-performance",
@@ -350,6 +369,9 @@ function createPlayerMesh(player: Player) {
   // Add to scene
   scene.add(mesh);
 
+  // Add a temporary ripple to highlight the spawn location
+  addSpawnRipple(player.x, player.z, player.color);
+
   // Assign mesh to player
   player.mesh = mesh;
 }
@@ -404,12 +426,32 @@ function animatePlayerMeshes() {
   });
 }
 
+// Animate and clean up spawn ripples
+function animateSpawnRipples() {
+  const now = Date.now();
+  for (let i = spawnRipples.length - 1; i >= 0; i--) {
+    const { mesh, start } = spawnRipples[i];
+    const age = now - start;
+    const progress = age / 1000; // 1 second duration
+    if (progress >= 1) {
+      scene.remove(mesh);
+      spawnRipples.splice(i, 1);
+      continue;
+    }
+    const scale = 1 + progress * 3;
+    mesh.scale.set(scale, scale, scale);
+    const mat = mesh.material as THREE.MeshBasicMaterial;
+    mat.opacity = 0.8 * (1 - progress);
+  }
+}
+
 export function animate(inputPoll: () => void) {
   requestAnimationFrame(() => animate(inputPoll));
 
   inputPoll(); // players move
   updateCamera(); // make the camera chase them
   animatePlayerMeshes(); // animate player meshes with pulsing effect
+  animateSpawnRipples();
   // maybeSaveCameraState();  // optional: persist ~1×/s
 
   renderer.render(scene, camera);

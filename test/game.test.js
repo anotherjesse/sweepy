@@ -16,9 +16,8 @@ function computeNumbers() {
     for (let dx = -1; dx <= 1; dx++) {
       for (let dz = -1; dz <= 1; dz++) {
         if (dx === 0 && dz === 0) continue;
-        const nx = x + dx;
-        const nz = z + dz;
-        if (nx < 0 || nx >= W || nz < 0 || nz >= H) continue;
+        const nx = (x + dx + W) % W;
+        const nz = (z + dz + H) % H;
         const ni = nx + nz * W;
         if (game.states[ni] & MINE) count++;
       }
@@ -61,4 +60,21 @@ test('getFinishedMinesCount counts finished mines', () => {
   game.states[0] = MINE | FINISHED;
   game.states[1] = MINE;
   assert.equal(game.getFinishedMinesCount(), 1);
+});
+
+test('adjacent mine count wraps across edges', () => {
+  game.states[0] |= MINE; // (0,0)
+  computeNumbers();
+  const idx = 2 + 2 * config.W; // (2,2) on 3x3 board
+  const count = game.states[idx] & NUMBER_MASK;
+  assert.equal(count, 1);
+});
+
+test('flood fill respects toroidal board', () => {
+  game.states[8] |= MINE; // (2,2)
+  computeNumbers();
+  const player = { x: 0, z: 0 };
+  game.revealCell(player);
+  const revealed = Array.from(game.states).filter(s => s & REVEALED).length;
+  assert.equal(revealed, 1);
 });

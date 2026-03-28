@@ -93,13 +93,8 @@ function calculateAdjacentMines() {
             for (let dz = -1; dz <= 1; dz++) {
                 if (dx === 0 && dz === 0) continue; // Skip self
 
-                const nx = x + dx;
-                const nz = z + dz;
-
-                // Check bounds
-                if (nx < 0 || nx >= config.W || nz < 0 || nz >= config.H) {
-                    continue;
-                }
+                const nx = (x + dx + config.W) % config.W;
+                const nz = (z + dz + config.H) % config.H;
 
                 const ni = nx + nz * config.W;
                 // Ensure index is valid
@@ -183,12 +178,8 @@ function floodFillReveal(index: number) {
             for (let dz = -1; dz <= 1; dz++) {
                 if (dx === 0 && dz === 0) continue;
 
-                const nx = x + dx;
-                const nz = z + dz;
-
-                if (nx < 0 || nx >= config.W || nz < 0 || nz >= config.H) {
-                    continue;
-                }
+                const nx = (x + dx + config.W) % config.W;
+                const nz = (z + dz + config.H) % config.H;
 
                 const ni = nx + nz * config.W;
 
@@ -230,12 +221,8 @@ export function checkForBoxedInMines() {
                 for (let dz = -1; dz <= 1; dz++) {
                     if (dx === 0 && dz === 0) continue;
 
-                    const nx = x + dx;
-                    const nz = z + dz;
-
-                    if (nx < 0 || nx >= config.W || nz < 0 || nz >= config.H) {
-                        continue;
-                    }
+                    const nx = (x + dx + config.W) % config.W;
+                    const nz = (z + dz + config.H) % config.H;
 
                     const ni = nx + nz * config.W;
 
@@ -267,9 +254,6 @@ export function checkForBoxedInMines() {
 
         const localMines = findLocalMines(idx);
 
-        const x = idx % config.W;
-        const z = Math.floor(idx / config.W);
-
         // at least one of localMines is not finished!
         // let's check if they are all flagged
         const allFlagged = Array.from(localMines).every((mine) => {
@@ -290,12 +274,8 @@ export function checkForBoxedInMines() {
                 for (let dz = -1; dz <= 1; dz++) {
                     if (dx === 0 && dz === 0) continue;
 
-                    const nx = x + dx;
-                    const nz = z + dz;
-
-                    if (nx < 0 || nx >= config.W || nz < 0 || nz >= config.H) {
-                        continue;
-                    }
+                    const nx = (x + dx + config.W) % config.W;
+                    const nz = (z + dz + config.H) % config.H;
 
                     const ni = nx + nz * config.W;
 

@@ -6,6 +6,11 @@ import { Player, players } from "../players";
 import { on, PLAYER_ADDED, PLAYER_REMOVED } from "../eventBus";
 
 let cellMesh: THREE.InstancedMesh | null = null;
+const revealAlphas = new Float32Array(config.N).fill(1);
+const revealQueue: number[] = [];
+type RevealAnim = { index: number; start: number };
+const activeReveals: RevealAnim[] = [];
+const REVEAL_DURATION = 3000; // ms
 const scene = new THREE.Scene();
 export const renderer = new THREE.WebGLRenderer({
   antialias: false,
@@ -99,6 +104,12 @@ export function initMeshes() {
   const aState = new THREE.InstancedBufferAttribute(stateArray, 1);
   cellGeo.setAttribute("aState", aState);
 
+  // Attribute for reveal animation alpha
+  const alphaArray = new Float32Array(config.N);
+  alphaArray.set(revealAlphas);
+  const aAlpha = new THREE.InstancedBufferAttribute(alphaArray, 1);
+  cellGeo.setAttribute("aAlpha", aAlpha);
+
   // Create shader material for the sprite sheet
   const cellMat = new THREE.ShaderMaterial({
     uniforms: {
@@ -113,7 +124,9 @@ export function initMeshes() {
     vertexShader: `
     attribute vec2 aOffset;
     attribute float aState;
+    attribute float aAlpha;
     varying vec2 vUv;
+    varying float vAlpha;
     
     uniform sampler2D atlas;
     
@@ -183,6 +196,7 @@ export function initMeshes() {
       vec2 baseUv  = uv; // the built-in 0–1 range within one tile
       vec2 tileSz  = vec2(1.0/TILE_COLS, 1.0/TILE_ROWS);
       vUv = tileUV * tileSz + baseUv * tileSz;
+      vAlpha = aAlpha;
       
       // standard instancing logic
       vec3 pos = position + vec3(aOffset.x, 0.0, aOffset.y);
@@ -192,6 +206,7 @@ export function initMeshes() {
     fragmentShader: `
     uniform sampler2D atlas;
     varying vec2 vUv;
+    varying float vAlpha;
     
     void main() {
       // Get original texture color (black/white/transparent)
@@ -247,8 +262,8 @@ export function initMeshes() {
         else if (spriteX == 3.0) finalColor = num8Color;
       }
       
-      // Apply color based on texture intensity
-      gl_FragColor = vec4(finalColor * texColor.r, texColor.a);
+      // Apply color based on texture intensity and reveal alpha
+      gl_FragColor = vec4(finalColor * texColor.r, texColor.a * vAlpha);
     }
     `,
     side: THREE.DoubleSide,
@@ -308,6 +323,14 @@ export function updateMeshes() {
   const arrData = arr.array as Float32Array;
   for (let i = 0; i < config.N; ++i) arrData[i] = states[i];
   arr.needsUpdate = true;
+
+  // Update reveal alpha attribute
+  const alphaAttr = cellMesh.geometry.getAttribute(
+    "aAlpha",
+  ) as THREE.InstancedBufferAttribute;
+  const alphaData = alphaAttr.array as Float32Array;
+  for (let i = 0; i < config.N; ++i) alphaData[i] = revealAlphas[i];
+  alphaAttr.needsUpdate = true;
 
   // Update player meshes
   updatePlayerMeshes();
@@ -404,12 +427,44 @@ function animatePlayerMeshes() {
   });
 }
 
+// Queue tiles for reveal animation
+export function queueTileReveal(indices: number[]) {
+  revealQueue.push(...indices);
+}
+
+// Animate reveal of tiles sequentially with fading
+function animateRevealTiles() {
+  const now = performance.now();
+
+  // Start next reveal if none active
+  if (revealQueue.length > 0 && activeReveals.length === 0) {
+    const idx = revealQueue.shift()!;
+    revealAlphas[idx] = 0;
+    activeReveals.push({ index: idx, start: now });
+  }
+
+  // Update active reveals
+  for (let i = activeReveals.length - 1; i >= 0; i--) {
+    const anim = activeReveals[i];
+    const progress = (now - anim.start) / REVEAL_DURATION;
+    revealAlphas[anim.index] = Math.min(1, progress);
+    if (progress >= 1) {
+      activeReveals.splice(i, 1);
+    }
+  }
+
+  if (activeReveals.length > 0) {
+    updateMeshes();
+  }
+}
+
 export function animate(inputPoll: () => void) {
   requestAnimationFrame(() => animate(inputPoll));
 
   inputPoll(); // players move
   updateCamera(); // make the camera chase them
   animatePlayerMeshes(); // animate player meshes with pulsing effect
+  animateRevealTiles();
   // maybeSaveCameraState();  // optional: persist ~1×/s
 
   renderer.render(scene, camera);

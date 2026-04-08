@@ -1,5 +1,5 @@
 const fs = require('fs');
-const files = ['dist/game.js', 'dist/input/gamepad.js'];
+const files = ['dist/game.js', 'dist/input/gamepad.js', 'dist/eventBus.js', 'dist/players.js'];
 for (const file of files) {
   if (!fs.existsSync(file)) continue;
   let text = fs.readFileSync(file, 'utf8');
@@ -11,5 +11,8 @@ for (const file of files) {
   text = text.replace(/\.\/input\/gamepad(?!(\.js))/g, './input/gamepad.js');
   text = text.replace(/\.\.\/players(?!(\.js))/g, '../players.js');
   text = text.replace(/\.\/eventBus(?!(\.js))/g, './eventBus.js');
+  text = text.replace(/\.\/players(?!(\.js))/g, './players.js');
+  text = text.replace(/\.\/game(?!(\.js))/g, './game.js');
+  text = text.replace(/\.\/gfx\/camera(?!(\.js))/g, './gfx/camera.js');
   fs.writeFileSync(file, text);
 }

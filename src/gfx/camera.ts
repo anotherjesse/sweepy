@@ -93,8 +93,8 @@ export async function initCamera(renderer: THREE.WebGLRenderer) {
 
   // mouse: L-click drag pan • wheel zoom • no rotation
   controls.mouseButtons = {
-    LEFT: THREE.MOUSE.LEFT,
-    MIDDLE: THREE.MOUSE.MIDDLE,
+    LEFT: THREE.MOUSE.PAN,
+    MIDDLE: THREE.MOUSE.DOLLY,
     RIGHT: THREE.MOUSE.PAN,
   };
 

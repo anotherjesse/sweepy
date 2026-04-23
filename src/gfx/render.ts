@@ -56,8 +56,6 @@ function loadSpriteAtlas(): THREE.Texture {
 
 // Initialize meshes
 export function initMeshes() {
-  console.log("Initializing meshes");
-
   // Create a checkerboard background (optional)
   const boardGeo = new THREE.PlaneGeometry(config.W, config.H);
   // Make sure board is flat on XZ plane
@@ -175,7 +173,7 @@ export function initMeshes() {
         
         // Override for finished mines (mines that are surrounded by revealed cells)
         if (mine && finished) {
-          tileUV = vec2(1.0, 0.0);     // Use a different tile for finished mines (col=2,row=0)
+          tileUV = vec2(1.0, 0.0);     // finished mines at col=1,row=0
         }
       }
       
@@ -312,7 +310,7 @@ export function updateMeshes() {
   // Update player meshes
   updatePlayerMeshes();
 
-  console.log("Meshes updated successfully");
+
 }
 
 // Initialize player meshes

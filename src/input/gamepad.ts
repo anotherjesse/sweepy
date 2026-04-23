@@ -69,10 +69,6 @@ function createPoll(id: string): () => Actions {
     if (gamepad.buttons[0]?.pressed && !mem.btn[0]) out.revealCell = true;
     if (gamepad.buttons[1]?.pressed && !mem.btn[1]) out.toggleFlag = true;
 
-    if (out.dX !== undefined || out.dZ !== undefined) {
-      console.log("Gamepad movement:", out.dX, out.dZ);
-    }
-
     mem.btn = gamepad.buttons.map((b) => b.pressed);
     mem.axes = gamepad.axes.map(axisDir);
 

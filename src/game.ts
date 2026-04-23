@@ -32,8 +32,8 @@ export function generateBoard(
     seed: string | null = null,
     minePercentage = 0.3,
 ) {
-    console.log(`Generating board with seed: ${seed}`);
-    const rng = seedrandom(seed ?? generateRandomSeed());
+    const actualSeed = seed ?? generateRandomSeed();
+    const rng = seedrandom(actualSeed);
     const simplex = new SimplexNoise(rng);
 
     // Clear existing state
@@ -60,21 +60,14 @@ export function generateBoard(
         }
     }
 
-    console.log(
-        `Generated ${mineCount} mines (${
-            (mineCount / config.N * 100).toFixed(2)
-        }%)`,
-    );
-
     // Calculate adjacent mines for each cell
     calculateAdjacentMines();
 
     // Update the mesh display
     updateMeshes();
-    console.log("Board generated, meshes updated");
 
     // Save the current seed and game state
-    saveGameData(seed);
+    saveGameData(actualSeed);
 }
 
 // Calculate adjacent mines for each cell
@@ -172,10 +165,11 @@ export function revealCell(
 
 function floodFillReveal(index: number) {
     const queue = [index];
+    let head = 0;
     const visited = new Set([index]);
 
-    while (queue.length > 0) {
-        const currentIndex = queue.shift()!;
+    while (head < queue.length) {
+        const currentIndex = queue[head++];
         const x = currentIndex % config.W;
         const z = Math.floor(currentIndex / config.W);
 
@@ -219,10 +213,11 @@ export function checkForBoxedInMines() {
         const { MINE } = config.cellStateConstants;
 
         const queue = [index];
+        let head = 0;
         const localMines = new Set<number>([index]);
 
-        while (queue.length > 0) {
-            const currentIndex = queue.shift()!;
+        while (head < queue.length) {
+            const currentIndex = queue[head++];
             const x = currentIndex % config.W;
             const z = Math.floor(currentIndex / config.W);
 
@@ -267,17 +262,11 @@ export function checkForBoxedInMines() {
 
         const localMines = findLocalMines(idx);
 
-        const x = idx % config.W;
-        const z = Math.floor(idx / config.W);
-
         // at least one of localMines is not finished!
         // let's check if they are all flagged
-        const allFlagged = Array.from(localMines).every((mine) => {
-            const x = mine % config.W;
-            const z = Math.floor(mine / config.W);
-
-            return states[mine] & FLAGGED;
-        });
+        const allFlagged = Array.from(localMines).every((mine) =>
+            states[mine] & FLAGGED
+        );
 
         if (!allFlagged) continue;
 
@@ -320,13 +309,6 @@ export function checkForBoxedInMines() {
         });
     }
 
-    // For debugging - count total finished mines
-    let finishedCount = 0;
-    for (let i = 0; i < config.N; i++) {
-        if ((states[i] & MINE) && (states[i] & FINISHED)) {
-            finishedCount++;
-        }
-    }
 }
 
 // Toggle flag on a cell
@@ -341,8 +323,8 @@ export function toggleFlag(player: Player) {
     if (states[index] & REVEALED) return;
 
     states[index] ^= FLAGGED;
-    updateMeshes();
     checkForBoxedInMines();
+    updateMeshes();
     saveState(states);
 }
 
@@ -384,16 +366,15 @@ export async function loadGameData(): Promise<boolean> {
         states.set(savedState);
         checkForBoxedInMines();
 
-        // Try to get seed from preferences first, then fallback to localStorage
+        // Try to get seed from preferences
         const savedSeed = prefs?.seed;
-
         if (savedSeed) {
             gameState.currentSeed = savedSeed;
-
-            // Update display
-            updateMeshes();
-            return true;
         }
+
+        // Update display even if seed is missing
+        updateMeshes();
+        return true;
     }
 
     return false;

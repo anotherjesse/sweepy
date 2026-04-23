@@ -1,6 +1,7 @@
 import * as config from "./config";
 import { revealCell, toggleFlag } from "./game";
 import { zoomBy } from "./gfx/camera";
+import { updatePlayerInfo } from "./gfx/ui";
 import * as THREE from "three";
 import {
   on,
@@ -45,7 +46,7 @@ export function teleportAllPlayers(dX: number, dZ: number) {
     player.x = (player.x + dX + config.W) % config.W;
     player.z = (player.z + dZ + config.H) % config.H;
     if (player.mesh) {
-      player.mesh.position.set(player.x, 0.4, player.z);
+      player.mesh.position.set(player.x + 0.5, 0.4, player.z + 0.5);
     }
   }
 }
@@ -132,12 +133,7 @@ export function pollPlayers() {
   // Update player info if UI is visible
   const ui = globalThis.document.getElementById("ui");
   if (ui && ui.classList.contains("visible")) {
-    // Import dynamically to avoid circular dependencies
-    import("./gfx/ui").then((ui) => {
-      if (typeof ui.updatePlayerInfo === "function") {
-        ui.updatePlayerInfo();
-      }
-    });
+    updatePlayerInfo();
   }
 }
 
@@ -165,8 +161,8 @@ function pollPlayer(player: Player) {
     zoomBy(actions.zoomBy);
   }
 
-  // Update player mesh position if it exists
+  // Update player mesh position if it exists (centered in cell)
   if (player.mesh) {
-    player.mesh.position.set(player.x, 0.4, player.z);
+    player.mesh.position.set(player.x + 0.5, 0.4, player.z + 0.5);
   }
 }

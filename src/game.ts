@@ -1,7 +1,13 @@
 import seedrandom from "seedrandom";
 import SimplexNoise from "simplex-noise";
-import { loadPreferences, loadState, saveState, updatePreferences } from "./persist";
+import {
+    loadPreferences,
+    loadState,
+    saveState,
+    updatePreferences,
+} from "./persist";
 import * as config from "./config";
+import { Board } from "./board";
 import { Player } from "./players";
 import {
     BOARD_CHANGED,
@@ -11,8 +17,6 @@ import {
     TELEPORT_PLAYERS,
     TELEPORT_STARTED,
 } from "./eventBus";
-const { NUMBER_MASK, REVEALED, FLAGGED, MINE, FINISHED } =
-    config.cellStateConstants;
 
 // Game state type
 type GameState = {
@@ -22,8 +26,10 @@ type GameState = {
     currentSeed: string;
 };
 
-// Use Uint8Array for memory efficiency (1 byte per cell) as specified in README
-export const states = new Uint8Array(config.N);
+export const board = new Board(config.W, config.H);
+
+// The cell state array, shared with the render layer (stable reference)
+export const states = board.states;
 
 // Game state object
 export const gameState: GameState = {
@@ -41,86 +47,28 @@ export function generateBoard(
     const rng = seedrandom(seed ?? generateRandomSeed());
     const simplex = new SimplexNoise(rng);
 
-    // Clear existing state
-    states.fill(0);
-
     // FIXME(ja): the board layout isn't good right now... too many mines touching each other
 
     // Distribute mines using simplex noise for more natural clustering
-    const noiseScale = 0.25; // Scale factor for noise
-    const threshold = 1 - minePercentage; // Threshold value for mine placement
+    const noiseScale = 0.25;
+    const threshold = 1 - minePercentage;
 
-    let mineCount = 0;
-
-    for (let i = 0; i < config.N; i++) {
-        const x = i % config.W, z = Math.floor(i / config.W);
-
-        // Use noise to determine mine placement
+    const mineCount = board.generate((x, z) => {
         const noiseValue =
-            (simplex.noise2D(x * noiseScale, z * noiseScale) + 1) / 2; // Convert to 0-1 range
-
-        if (noiseValue > threshold) {
-            states[i] |= MINE;
-            mineCount++;
-        }
-    }
+            (simplex.noise2D(x * noiseScale, z * noiseScale) + 1) / 2; // 0-1 range
+        return noiseValue > threshold;
+    });
 
     console.log(
         `Generated ${mineCount} mines (${
-            (mineCount / config.N * 100).toFixed(2)
+            (mineCount / board.n * 100).toFixed(2)
         }%)`,
     );
-
-    // Calculate adjacent mines for each cell
-    calculateAdjacentMines();
 
     emit(BOARD_CHANGED);
 
     // Save the current seed and game state
     saveGameData(seed);
-}
-
-// Calculate adjacent mines for each cell
-function calculateAdjacentMines() {
-    for (let i = 0; i < config.N; i++) {
-        if (states[i] & MINE) continue; // Skip if this is a mine
-
-        // First clear the NUMBER_MASK bits
-        states[i] &= ~NUMBER_MASK;
-
-        const x = i % config.W, z = Math.floor(i / config.W);
-        let count = 0;
-
-        // Check all 8 adjacent cells
-        for (let dx = -1; dx <= 1; dx++) {
-            for (let dz = -1; dz <= 1; dz++) {
-                if (dx === 0 && dz === 0) continue; // Skip self
-
-                const nx = x + dx;
-                const nz = z + dz;
-
-                // Check bounds
-                if (nx < 0 || nx >= config.W || nz < 0 || nz >= config.H) {
-                    continue;
-                }
-
-                const ni = nx + nz * config.W;
-                // Ensure index is valid
-                if (ni >= 0 && ni < config.N && (states[ni] & MINE)) {
-                    count++;
-                }
-            }
-        }
-
-        // Ensure count doesn't exceed the mask capacity (15)
-        if (count > 8) {
-            console.error(`Count is too high: ${count} for cell ${i}`);
-            count = 8;
-        }
-
-        // Store adjacent mine count in the NUMBER_MASK bits
-        states[i] |= count;
-    }
 }
 
 // Duration of the post-death camera flight; visual layers (fade overlay,
@@ -146,213 +94,32 @@ export const finishTeleport = () => {
     emit(TELEPORT_FINISHED);
 };
 
-// Reveal a cell
-export function revealCell(
-    player: Player,
-) {
-    const { disablePlayer } = gameState;
-    if (disablePlayer) return;
+// Reveal the cell under the player
+export function revealCell(player: Player) {
+    if (gameState.disablePlayer) return;
 
-    const index = player.x + (player.z) * config.W;
+    const result = board.reveal(player.x, player.z);
 
-    const state = states[index];
-
-    if (
-        state & REVEALED ||
-        state & FLAGGED
-    ) return;
-
-    if (state & MINE) {
+    if (result === "mine") {
         emit(RUMBLE_GAMEPADS);
-        return startTeleport();
+        startTeleport();
+        return;
     }
 
-    states[index] |= REVEALED;
-
-    const adjacentMines = state & NUMBER_MASK;
-    if (adjacentMines === 0) {
-        floodFillReveal(index);
-    }
-
-    checkForBoxedInMines();
-    emit(BOARD_CHANGED);
-    saveState(states);
-}
-
-function floodFillReveal(index: number) {
-    const queue = [index];
-    const visited = new Set([index]);
-
-    while (queue.length > 0) {
-        const currentIndex = queue.shift()!;
-        const x = currentIndex % config.W;
-        const z = Math.floor(currentIndex / config.W);
-
-        for (let dx = -1; dx <= 1; dx++) {
-            for (let dz = -1; dz <= 1; dz++) {
-                if (dx === 0 && dz === 0) continue;
-
-                const nx = x + dx;
-                const nz = z + dz;
-
-                if (nx < 0 || nx >= config.W || nz < 0 || nz >= config.H) {
-                    continue;
-                }
-
-                const ni = nx + nz * config.W;
-
-                // Skip if already visited, revealed, flagged, or a mine
-                if (
-                    visited.has(ni) || (states[ni] & REVEALED) ||
-                    (states[ni] & FLAGGED) || (states[ni] & MINE)
-                ) continue;
-
-                visited.add(ni);
-
-                states[ni] |= REVEALED;
-
-                const adjacentMinesNi = states[ni] & NUMBER_MASK;
-                if (adjacentMinesNi === 0) {
-                    queue.push(ni);
-                }
-            }
-        }
+    if (result === "revealed") {
+        emit(BOARD_CHANGED);
+        saveState(states);
     }
 }
 
-// Function to check for mines that are completely boxed in
-export function checkForBoxedInMines() {
-    const visitedMines = new Set<number>();
-
-    const findLocalMines = (index: number) => {
-        const { MINE } = config.cellStateConstants;
-
-        const queue = [index];
-        const localMines = new Set<number>([index]);
-
-        while (queue.length > 0) {
-            const currentIndex = queue.shift()!;
-            const x = currentIndex % config.W;
-            const z = Math.floor(currentIndex / config.W);
-
-            for (let dx = -1; dx <= 1; dx++) {
-                for (let dz = -1; dz <= 1; dz++) {
-                    if (dx === 0 && dz === 0) continue;
-
-                    const nx = x + dx;
-                    const nz = z + dz;
-
-                    if (nx < 0 || nx >= config.W || nz < 0 || nz >= config.H) {
-                        continue;
-                    }
-
-                    const ni = nx + nz * config.W;
-
-                    // skip if not a mine, or already visited
-                    if (localMines.has(ni) || !(states[ni] & MINE)) continue;
-
-                    localMines.add(ni);
-                    visitedMines.add(ni);
-                    queue.push(ni);
-                }
-            }
-        }
-
-        return localMines;
-    };
-
-    // First, let's check each mine individually
-    for (let idx = 0; idx < config.N; idx++) {
-        if (visitedMines.has(idx)) continue;
-
-        // Skip if not a mine or already marked as finished
-        if (
-            !(states[idx] & MINE) || (states[idx] & FINISHED) ||
-            !(states[idx] & FLAGGED)
-        ) continue;
-
-        // we are in an flagged mine that has not been marked as finished
-        visitedMines.add(idx);
-
-        const localMines = findLocalMines(idx);
-
-        const x = idx % config.W;
-        const z = Math.floor(idx / config.W);
-
-        // at least one of localMines is not finished!
-        // let's check if they are all flagged
-        const allFlagged = Array.from(localMines).every((mine) => {
-            const x = mine % config.W;
-            const z = Math.floor(mine / config.W);
-
-            return states[mine] & FLAGGED;
-        });
-
-        if (!allFlagged) continue;
-
-        // check if all the cells +/- 1 in all directions are revealed
-        const allRevealed = Array.from(localMines).every((mine) => {
-            const x = mine % config.W;
-            const z = Math.floor(mine / config.W);
-
-            for (let dx = -1; dx <= 1; dx++) {
-                for (let dz = -1; dz <= 1; dz++) {
-                    if (dx === 0 && dz === 0) continue;
-
-                    const nx = x + dx;
-                    const nz = z + dz;
-
-                    if (nx < 0 || nx >= config.W || nz < 0 || nz >= config.H) {
-                        continue;
-                    }
-
-                    const ni = nx + nz * config.W;
-
-                    if (
-                        (!(states[ni] & MINE)) && !(states[ni] & REVEALED) ||
-                        ((states[ni] & MINE) && !(states[ni] & FLAGGED))
-                    ) {
-                        return false;
-                    }
-                }
-            }
-
-            return true;
-        });
-
-        if (!allRevealed) continue;
-
-        // all mines are flagged and all adjacent cells are revealed
-        // we can now finish the mine
-        localMines.forEach((mine) => {
-            states[mine] |= FINISHED;
-        });
-    }
-
-    // For debugging - count total finished mines
-    let finishedCount = 0;
-    for (let i = 0; i < config.N; i++) {
-        if ((states[i] & MINE) && (states[i] & FINISHED)) {
-            finishedCount++;
-        }
-    }
-}
-
-// Toggle flag on a cell
+// Toggle flag on the cell under the player
 export function toggleFlag(player: Player) {
-    const { disablePlayer } = gameState;
-    const { REVEALED, FLAGGED } = config.cellStateConstants;
+    if (gameState.disablePlayer) return;
 
-    if (disablePlayer) return;
-
-    const index = player.x + (player.z) * config.W;
-
-    if (states[index] & REVEALED) return;
-
-    states[index] ^= FLAGGED;
-    checkForBoxedInMines();
-    emit(BOARD_CHANGED);
-    saveState(states);
+    if (board.toggleFlag(player.x, player.z)) {
+        emit(BOARD_CHANGED);
+        saveState(states);
+    }
 }
 
 function generateRandomSeed(): string {
@@ -369,35 +136,22 @@ export function saveGameData(seed: string | null = null) {
     updatePreferences({ seed: gameState.currentSeed });
 }
 
-const makeGameStateValid = (state: Uint8Array | null): Uint8Array | null => {
-    if (!state) return null;
-    const validState = new Uint8Array(state);
-    for (let i = 0; i < config.N; i++) {
-        validState[i] &= ~FINISHED;
-    }
-    return validState;
-};
-
 // Load game data from IndexedDB
 export async function loadGameData(): Promise<boolean> {
-    // Load game state
-    let savedState = await loadState();
-    savedState = makeGameStateValid(savedState);
-    // Try to load preferences (including seed)
+    const savedState = await loadState();
     const prefs = await loadPreferences();
 
-    // First check if we have the board state
-    if (savedState) {
-        // Copy saved state to our game state array
-        states.set(savedState);
-        checkForBoxedInMines();
+    if (savedState && savedState.length !== board.n) {
+        console.warn(
+            `Discarding saved game: ${savedState.length} cells, board expects ${board.n}`,
+        );
+    }
 
-        // Try to get seed from preferences first, then fallback to localStorage
+    if (savedState && board.load(savedState)) {
         const savedSeed = prefs?.seed;
 
         if (savedSeed) {
             gameState.currentSeed = savedSeed;
-
             emit(BOARD_CHANGED);
             return true;
         }
@@ -406,14 +160,6 @@ export async function loadGameData(): Promise<boolean> {
     return false;
 }
 
-// Count mines that have been flagged and marked as finished
 export function getFinishedMinesCount(): number {
-    const { MINE, FINISHED } = config.cellStateConstants;
-    let count = 0;
-    for (let i = 0; i < config.N; i++) {
-        if ((states[i] & MINE) && (states[i] & FINISHED)) {
-            count++;
-        }
-    }
-    return count;
+    return board.getFinishedMinesCount();
 }

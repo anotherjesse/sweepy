@@ -3,6 +3,7 @@ import SimplexNoise from "simplex-noise";
 import { updateMeshes } from "./gfx/render";
 import { loadState, saveState, updatePreferences } from "./persist";
 import { fade, unfade } from "./gfx/ui";
+import { flyCameraToPlayers } from "./gfx/camera";
 import * as config from "./config";
 import { Player } from "./players";
 import { emit, TELEPORT_PLAYERS, RUMBLE_GAMEPADS } from "./eventBus";
@@ -120,15 +121,26 @@ function calculateAdjacentMines() {
     }
 }
 
+// Camera flight after death: fade out, swoop across the board, fade back in
+// partway through so the tail of the deceleration is visible.
+const TELEPORT_FLIGHT_MS = 2000;
+const TELEPORT_UNFADE_MS = TELEPORT_FLIGHT_MS * 0.6;
+
 export const startTeleport = () => {
     gameState.disablePlayer = true;
     fade();
 
     // Shift all players by a fixed offset and wrap around the board
-emit(TELEPORT_PLAYERS, { dX: Math.floor(Math.random() * config.W), dZ: Math.floor(Math.random() * config.H) });
+    emit(TELEPORT_PLAYERS, {
+        dX: Math.floor(Math.random() * config.W),
+        dZ: Math.floor(Math.random() * config.H),
+    });
 
-    // Allow restart after a delay
-    setTimeout(finishTeleport, 1000);
+    // The camera flies there itself instead of crawling at its usual chase rate
+    flyCameraToPlayers(TELEPORT_FLIGHT_MS);
+
+    setTimeout(unfade, TELEPORT_UNFADE_MS);
+    setTimeout(finishTeleport, TELEPORT_FLIGHT_MS);
 };
 
 export const finishTeleport = () => {

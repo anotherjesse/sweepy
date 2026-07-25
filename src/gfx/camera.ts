@@ -22,9 +22,23 @@ const POS_LERP = 0.01; // How quickly we chase the centroid
 const ZOOM_LERP = 0.15; // How quickly we chase the target zoom
 const PAD = 2; // Extra cells around the bounding box
 const ZOOM_EPS = 1e-3; // Threshold before we call updateProjection
+const FLIGHT_MS = 2000; // Default duration of a scripted camera flight
 
 /** value the *user* asked for (mouse wheel / gamepad shoulder etc.)  */
 let requestedZoom = (config.ZOOM_MIN + config.ZOOM_MAX) / 2;
+
+/** Active scripted flight (teleport etc.), overrides the lazy POS_LERP chase */
+let flight: {
+  fromX: number;
+  fromZ: number;
+  start: number;
+  duration: number;
+} | null = null;
+
+/** Slow start, fast middle, slow finish — cubic in/out. */
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Camera + controls skeleton (mostly as before)                      */
@@ -56,6 +70,20 @@ export function zoomBy(factor: number) {
     config.ZOOM_MIN,
     config.ZOOM_MAX,
   );
+}
+
+/**
+ * Fly the camera to wherever the players are, easing in and out over
+ * `duration` ms. Used for teleports: the normal POS_LERP chase would crawl
+ * across a board-sized jump for many seconds.
+ */
+export function flyCameraToPlayers(duration = FLIGHT_MS) {
+  flight = {
+    fromX: camera.position.x,
+    fromZ: camera.position.z,
+    start: performance.now(),
+    duration,
+  };
 }
 
 /** User intent: jump to an explicit zoom. (Seldom used, but nice.) */
@@ -160,18 +188,33 @@ export function updateCamera() {
 
     /* ---------- 2. Smoothly chase that goal ----------------------- */
     // Position (x,z) first – y stays fixed (orthographic depth doesn’t matter)
-    camera.position.x = THREE.MathUtils.lerp(
-      camera.position.x,
-      desiredPos.x,
-      POS_LERP,
-    );
-    camera.position.z = THREE.MathUtils.lerp(
-      camera.position.z,
-      desiredPos.z,
-      POS_LERP,
-    );
+    if (flight) {
+      const t = THREE.MathUtils.clamp(
+        (performance.now() - flight.start) / flight.duration,
+        0,
+        1,
+      );
+      const eased = easeInOutCubic(t);
 
-    controls.target.lerp(desiredPos, POS_LERP);
+      camera.position.x = THREE.MathUtils.lerp(flight.fromX, desiredPos.x, eased);
+      camera.position.z = THREE.MathUtils.lerp(flight.fromZ, desiredPos.z, eased);
+      controls.target.set(camera.position.x, 0, camera.position.z);
+
+      if (t >= 1) flight = null;
+    } else {
+      camera.position.x = THREE.MathUtils.lerp(
+        camera.position.x,
+        desiredPos.x,
+        POS_LERP,
+      );
+      camera.position.z = THREE.MathUtils.lerp(
+        camera.position.z,
+        desiredPos.z,
+        POS_LERP,
+      );
+
+      controls.target.lerp(desiredPos, POS_LERP);
+    }
 
     // Zoom
     camera.zoom = THREE.MathUtils.lerp(camera.zoom, goalZoom, ZOOM_LERP);

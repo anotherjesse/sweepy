@@ -1,4 +1,4 @@
-import { animate, initMeshes, renderer } from "./gfx/render";
+import { animate, initMeshes, initRender, renderer } from "./gfx/render";
 import {
   fade,
   initUI,
@@ -20,6 +20,7 @@ globalThis.addEventListener("DOMContentLoaded", async () => {
   initUI();
   initKeyboard();
   initGamepads();
+  await initRender();
   initMeshes();
 
   // Check for vertex texture support

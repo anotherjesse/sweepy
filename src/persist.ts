@@ -23,11 +23,19 @@ export async function loadState(): Promise<Uint8Array | null> {
   return buf ? new Uint8Array(buf) : null;
 }
 
-export async function updatePreferences(
+// Serialize read-merge-write pairs: concurrent updates (camera autosave vs
+// seed/darkMode writes) must not interleave and drop each other's fields
+let prefsChain: Promise<unknown> = Promise.resolve();
+
+export function updatePreferences(
   prefs: Partial<UserPreferences>,
 ): Promise<void> {
-  const currentPrefs = await loadPreferences() || { darkMode: false };
-  return set("userPreferences", { ...currentPrefs, ...prefs });
+  const result = prefsChain.then(async () => {
+    const currentPrefs = await loadPreferences() || { darkMode: false };
+    await set("userPreferences", { ...currentPrefs, ...prefs });
+  });
+  prefsChain = result.catch(() => {});
+  return result;
 }
 
 export async function loadPreferences(): Promise<UserPreferences | null> {

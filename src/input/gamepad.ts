@@ -2,13 +2,6 @@ import { type Actions, addPlayer, removePlayer, players } from "../players";
 import * as config from "../config";
 import { on, RUMBLE_GAMEPADS } from "../eventBus";
 
-// Support vibration/rumble via the Gamepad API
-
-export type GamepadButton = {
-  pressed: boolean;
-  previouslyPressed?: boolean;
-};
-
 // Utilities for edge-trigger implementation
 type PadMemory = {
   btn: boolean[]; // previous button states
@@ -69,10 +62,6 @@ function createPoll(id: string): () => Actions {
     if (gamepad.buttons[0]?.pressed && !mem.btn[0]) out.revealCell = true;
     if (gamepad.buttons[1]?.pressed && !mem.btn[1]) out.toggleFlag = true;
 
-    if (out.dX !== undefined || out.dZ !== undefined) {
-      console.log("Gamepad movement:", out.dX, out.dZ);
-    }
-
     mem.btn = gamepad.buttons.map((b) => b.pressed);
     mem.axes = gamepad.axes.map(axisDir);
 
@@ -105,8 +94,6 @@ export function pollGamepads() {
 }
 
 export function initGamepads() {
-  // Gamepad events
-  console.log("initGamepads");
   globalThis.addEventListener("gamepadconnected", connectGamepad);
   globalThis.addEventListener("gamepaddisconnected", disconnectGamepad);
 }

@@ -90,21 +90,12 @@ export function flyCameraToPlayers(duration = FLIGHT_MS) {
 on(TELEPORT_STARTED, ({ flightMs }) => flyCameraToPlayers(flightMs));
 on(ZOOM_BY, (factor) => zoomBy(factor));
 
-/** User intent: jump to an explicit zoom. (Seldom used, but nice.) */
-export function setZoom(level: number) {
-  requestedZoom = THREE.MathUtils.clamp(
-    level,
-    config.ZOOM_MIN,
-    config.ZOOM_MAX,
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /*  Initialise from saved prefs (called once by render.ts)             */
 /* ------------------------------------------------------------------ */
 
 export async function initCamera(renderer: THREE.WebGLRenderer) {
-  const prefs = await loadPreferences();
+  const prefs = await loadPreferences().catch(() => null);
 
   // Default centre of the board – y only matters for perspective cams
   const startX = prefs?.cameraPosition?.x ?? config.W / 2;
@@ -148,6 +139,8 @@ export async function initCamera(renderer: THREE.WebGLRenderer) {
  * movement has happened but BEFORE controls.update() and renderer.render().
  */
 export function updateCamera() {
+  if (!controls) return; // initCamera hasn't finished yet
+
   /* ---------- 1. Work out where the players are ------------------- */
   const list = Object.values(players);
   if (!list.length) {
@@ -239,17 +232,26 @@ export function updateCamera() {
 /* ------------------------------------------------------------------ */
 
 let lastSave = 0;
+let lastSaved = { x: NaN, z: NaN, zoom: NaN };
+
 export async function maybeSaveCameraState() {
+  if (!controls) return; // don't clobber saved prefs before initCamera loads them
+
   const now = Date.now();
   if (now - lastSave < config.CAMERA_SAVE_INTERVAL) return;
   lastSave = now;
 
+  // Skip the write when nothing moved
+  const { x, z } = camera.position;
+  if (
+    Math.abs(x - lastSaved.x) < 0.01 &&
+    Math.abs(z - lastSaved.z) < 0.01 &&
+    lastSaved.zoom === requestedZoom
+  ) return;
+  lastSaved = { x, z, zoom: requestedZoom };
+
   await updatePreferences({
-    cameraPosition: {
-      x: camera.position.x,
-      y: camera.position.y,
-      z: camera.position.z,
-    },
+    cameraPosition: { x, y: camera.position.y, z },
     zoom: requestedZoom,
   });
 }

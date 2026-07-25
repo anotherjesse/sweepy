@@ -1,6 +1,5 @@
-import { gameState, generateBoard, states, getFinishedMinesCount } from "../game";
+import { gameState, generateBoard, getFinishedMinesCount } from "../game";
 import { updateMeshes } from "./render";
-import * as config from "../config";
 import { players } from "../players";
 import {
   BOARD_CHANGED,
@@ -104,32 +103,12 @@ export function initUI() {
     gameState.debugMode = !gameState.debugMode;
     debugButton.textContent = `Debug: ${gameState.debugMode ? "ON" : "OFF"}`;
     updateMeshes();
-
-    // Show/hide info box based on debug mode
-    const infoBox = document.getElementById("infoBox");
-    if (infoBox) {
-      infoBox.style.display = gameState.debugMode ? "block" : "none";
-    }
   });
 
   const controls = document.querySelector(".controls");
   if (controls) {
     controls.appendChild(debugButton);
   }
-
-  // Create info box for hover information
-  const infoBox = document.createElement("div");
-  infoBox.id = "infoBox";
-  infoBox.style.position = "absolute";
-  infoBox.style.bottom = "10px";
-  infoBox.style.left = "10px";
-  infoBox.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
-  infoBox.style.color = "white";
-  infoBox.style.padding = "10px";
-  infoBox.style.borderRadius = "5px";
-  infoBox.style.fontFamily = "monospace";
-  infoBox.style.display = gameState.debugMode ? "block" : "none";
-  document.body.appendChild(infoBox);
 
   // Initial check for players
   updateJoinInstructions();
@@ -143,29 +122,6 @@ export function initUI() {
     setTimeout(unfade, flightMs * TELEPORT_UNFADE_FRACTION);
   });
   on(TELEPORT_FINISHED, unfade);
-}
-
-// Function to update hover info for debug mode
-export function updateHoverInfo(index: number) {
-  const infoBox = document.getElementById("infoBox");
-  if (!infoBox) return;
-
-  const x = index % config.W;
-  const z = Math.floor(index / config.W);
-  const state = states[index];
-
-  infoBox.innerHTML = `
-      Position: (${x}, ${z})<br>
-      Index: ${index}<br>
-      State: ${state.toString(2).padStart(8, "0")}<br>
-    `;
-}
-
-export function clearHoverInfo() {
-  const infoBox = document.getElementById("infoBox");
-  if (infoBox) {
-    infoBox.innerHTML = "";
-  }
 }
 
 export function updateFinishedMineCount() {

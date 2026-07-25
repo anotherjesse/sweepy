@@ -22,7 +22,6 @@ import {
 type GameState = {
     disablePlayer: boolean;
     debugMode: boolean;
-    hoveredCellIndex: number;
     currentSeed: string;
 };
 
@@ -35,7 +34,6 @@ export const states = board.states;
 export const gameState: GameState = {
     disablePlayer: false,
     debugMode: false,
-    hoveredCellIndex: -1,
     currentSeed: "",
 };
 

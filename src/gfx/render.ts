@@ -1,7 +1,12 @@
 import * as THREE from "three";
 import { gameState, states } from "../game";
 import * as config from "../config";
-import { camera, initCamera, updateCamera } from "./camera";
+import {
+  camera,
+  initCamera,
+  maybeSaveCameraState,
+  updateCamera,
+} from "./camera";
 import { Player, players } from "../players";
 import { BOARD_CHANGED, on, PLAYER_ADDED, PLAYER_REMOVED } from "../eventBus";
 
@@ -11,11 +16,6 @@ export const renderer = new THREE.WebGLRenderer({
   antialias: false,
   powerPreference: "high-performance",
 });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap at 2x for performance
-scene.background = new THREE.Color(0x808080);
-
-globalThis.document.body.appendChild(renderer.domElement);
-globalThis.addEventListener("resize", handleResize);
 
 export function handleResize() {
   const h = globalThis.innerHeight;
@@ -38,9 +38,18 @@ export function handleResize() {
   renderer.domElement.style.width = `${w}px`;
   renderer.domElement.style.height = `${h}px`;
 }
-// Make sure handleResize() is still called once initially
-handleResize();
-initCamera(renderer);
+
+// Attach the canvas and wire everything that touches the document —
+// called once by main.ts before any meshes exist
+export async function initRender() {
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap at 2x for performance
+  scene.background = new THREE.Color(0x808080);
+
+  globalThis.document.body.appendChild(renderer.domElement);
+  globalThis.addEventListener("resize", handleResize);
+  handleResize();
+  await initCamera(renderer);
+}
 
 on(PLAYER_ADDED, updateMeshes);
 on(PLAYER_REMOVED, updateMeshes);
@@ -57,13 +66,6 @@ function loadSpriteAtlas(): THREE.Texture {
 
 // Initialize meshes
 export function initMeshes() {
-  console.log("Initializing meshes");
-
-  // Create a checkerboard background (optional)
-  const boardGeo = new THREE.PlaneGeometry(config.W, config.H);
-  // Make sure board is flat on XZ plane
-  // boardGeo.rotateX(-Math.PI / 2);
-
   // Initialize player meshes
   initPlayerMeshes();
 
@@ -312,8 +314,6 @@ export function updateMeshes() {
 
   // Update player meshes
   updatePlayerMeshes();
-
-  console.log("Meshes updated successfully");
 }
 
 // Initialize player meshes
@@ -411,7 +411,7 @@ export function animate(inputPoll: () => void) {
   inputPoll(); // players move
   updateCamera(); // make the camera chase them
   animatePlayerMeshes(); // animate player meshes with pulsing effect
-  // maybeSaveCameraState();  // optional: persist ~1×/s
+  maybeSaveCameraState(); // persist camera position/zoom, debounced to ~1×/s
 
   renderer.render(scene, camera);
 }

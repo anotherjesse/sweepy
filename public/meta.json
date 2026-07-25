@@ -2,5 +2,6 @@
   "title": "Millionsweeper",
   "description": "A one-million-cell, procedurally generated minesweeper board rendered with three.js — zoom, pan, and sweep.",
   "date": "2026-04-23",
-  "tags": ["game", "minesweeper", "threejs", "procedural"]
+  "tags": ["game", "minesweeper", "threejs", "procedural"],
+  "thumb": "thumb.png"
 }

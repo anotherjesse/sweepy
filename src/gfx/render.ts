@@ -3,7 +3,7 @@ import { gameState, states } from "../game";
 import * as config from "../config";
 import { camera, initCamera, updateCamera } from "./camera";
 import { Player, players } from "../players";
-import { on, PLAYER_ADDED, PLAYER_REMOVED } from "../eventBus";
+import { BOARD_CHANGED, on, PLAYER_ADDED, PLAYER_REMOVED } from "../eventBus";
 
 let cellMesh: THREE.InstancedMesh | null = null;
 const scene = new THREE.Scene();
@@ -44,6 +44,7 @@ initCamera(renderer);
 
 on(PLAYER_ADDED, updateMeshes);
 on(PLAYER_REMOVED, updateMeshes);
+on(BOARD_CHANGED, updateMeshes);
 
 // Load sprite atlas
 function loadSpriteAtlas(): THREE.Texture {

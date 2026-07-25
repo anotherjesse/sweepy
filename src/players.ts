@@ -1,6 +1,5 @@
 import * as config from "./config";
 import { revealCell, toggleFlag } from "./game";
-import { zoomBy } from "./gfx/camera";
 import * as THREE from "three";
 import {
   on,
@@ -8,6 +7,7 @@ import {
   TELEPORT_PLAYERS,
   PLAYER_ADDED,
   PLAYER_REMOVED,
+  ZOOM_BY,
 } from "./eventBus";
 
 export type Actions = {
@@ -128,17 +128,6 @@ export function pollPlayers() {
   for (const player of Object.values(players)) {
     pollPlayer(player);
   }
-
-  // Update player info if UI is visible
-  const ui = globalThis.document.getElementById("ui");
-  if (ui && ui.classList.contains("visible")) {
-    // Import dynamically to avoid circular dependencies
-    import("./gfx/ui").then((ui) => {
-      if (typeof ui.updatePlayerInfo === "function") {
-        ui.updatePlayerInfo();
-      }
-    });
-  }
 }
 
 function pollPlayer(player: Player) {
@@ -162,7 +151,7 @@ function pollPlayer(player: Player) {
     toggleFlag(player);
   }
   if (actions.zoomBy) {
-    zoomBy(actions.zoomBy);
+    emit(ZOOM_BY, actions.zoomBy);
   }
 
   // Update player mesh position if it exists

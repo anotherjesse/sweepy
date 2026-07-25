@@ -1,7 +1,7 @@
 import { gameState, startTeleport } from "../game";
 import { toggleUI } from "../gfx/ui";
 import { toggleDarkMode } from "../gfx/darkmode";
-import { zoomBy } from "../gfx/camera";
+import { emit, ZOOM_BY } from "../eventBus";
 import {
   type Actions,
   addPlayer,
@@ -54,13 +54,13 @@ export function onKeyDown(event: KeyboardEvent) {
 
     case "Minus":
     case "MinusSign":
-      zoomBy(0.95);
+      emit(ZOOM_BY, 0.95);
       break;
 
     case "Equal":
     case "Plus":
     case "PlusSign":
-      zoomBy(1.05);
+      emit(ZOOM_BY, 1.05);
       break;
   }
 

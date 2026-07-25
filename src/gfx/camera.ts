@@ -13,6 +13,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as config from "../config";
 import { loadPreferences, updatePreferences } from "../persist";
 import { players } from "../players";
+import { on, TELEPORT_STARTED, ZOOM_BY } from "../eventBus";
 
 /* ------------------------------------------------------------------ */
 /*  Constants & internal state                                        */
@@ -85,6 +86,9 @@ export function flyCameraToPlayers(duration = FLIGHT_MS) {
     duration,
   };
 }
+
+on(TELEPORT_STARTED, ({ flightMs }) => flyCameraToPlayers(flightMs));
+on(ZOOM_BY, (factor) => zoomBy(factor));
 
 /** User intent: jump to an explicit zoom. (Seldom used, but nice.) */
 export function setZoom(level: number) {

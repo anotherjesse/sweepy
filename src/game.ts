@@ -1,12 +1,16 @@
 import seedrandom from "seedrandom";
 import SimplexNoise from "simplex-noise";
-import { updateMeshes } from "./gfx/render";
-import { loadState, saveState, updatePreferences } from "./persist";
-import { fade, unfade } from "./gfx/ui";
-import { flyCameraToPlayers } from "./gfx/camera";
+import { loadPreferences, loadState, saveState, updatePreferences } from "./persist";
 import * as config from "./config";
 import { Player } from "./players";
-import { emit, TELEPORT_PLAYERS, RUMBLE_GAMEPADS } from "./eventBus";
+import {
+    BOARD_CHANGED,
+    emit,
+    RUMBLE_GAMEPADS,
+    TELEPORT_FINISHED,
+    TELEPORT_PLAYERS,
+    TELEPORT_STARTED,
+} from "./eventBus";
 const { NUMBER_MASK, REVEALED, FLAGGED, MINE, FINISHED } =
     config.cellStateConstants;
 
@@ -70,9 +74,7 @@ export function generateBoard(
     // Calculate adjacent mines for each cell
     calculateAdjacentMines();
 
-    // Update the mesh display
-    updateMeshes();
-    console.log("Board generated, meshes updated");
+    emit(BOARD_CHANGED);
 
     // Save the current seed and game state
     saveGameData(seed);
@@ -121,14 +123,12 @@ function calculateAdjacentMines() {
     }
 }
 
-// Camera flight after death: fade out, swoop across the board, fade back in
-// partway through so the tail of the deceleration is visible.
+// Duration of the post-death camera flight; visual layers (fade overlay,
+// camera) listen for TELEPORT_STARTED and time themselves off this.
 const TELEPORT_FLIGHT_MS = 2000;
-const TELEPORT_UNFADE_MS = TELEPORT_FLIGHT_MS * 0.6;
 
 export const startTeleport = () => {
     gameState.disablePlayer = true;
-    fade();
 
     // Shift all players by a fixed offset and wrap around the board
     emit(TELEPORT_PLAYERS, {
@@ -136,17 +136,14 @@ export const startTeleport = () => {
         dZ: Math.floor(Math.random() * config.H),
     });
 
-    // The camera flies there itself instead of crawling at its usual chase rate
-    flyCameraToPlayers(TELEPORT_FLIGHT_MS);
+    emit(TELEPORT_STARTED, { flightMs: TELEPORT_FLIGHT_MS });
 
-    setTimeout(unfade, TELEPORT_UNFADE_MS);
     setTimeout(finishTeleport, TELEPORT_FLIGHT_MS);
 };
 
 export const finishTeleport = () => {
-    unfade();
-
     gameState.disablePlayer = false;
+    emit(TELEPORT_FINISHED);
 };
 
 // Reveal a cell
@@ -178,7 +175,7 @@ export function revealCell(
     }
 
     checkForBoxedInMines();
-    updateMeshes();
+    emit(BOARD_CHANGED);
     saveState(states);
 }
 
@@ -353,8 +350,8 @@ export function toggleFlag(player: Player) {
     if (states[index] & REVEALED) return;
 
     states[index] ^= FLAGGED;
-    updateMeshes();
     checkForBoxedInMines();
+    emit(BOARD_CHANGED);
     saveState(states);
 }
 
@@ -387,7 +384,6 @@ export async function loadGameData(): Promise<boolean> {
     let savedState = await loadState();
     savedState = makeGameStateValid(savedState);
     // Try to load preferences (including seed)
-    const { loadPreferences } = await import("./persist");
     const prefs = await loadPreferences();
 
     // First check if we have the board state
@@ -402,8 +398,7 @@ export async function loadGameData(): Promise<boolean> {
         if (savedSeed) {
             gameState.currentSeed = savedSeed;
 
-            // Update display
-            updateMeshes();
+            emit(BOARD_CHANGED);
             return true;
         }
     }

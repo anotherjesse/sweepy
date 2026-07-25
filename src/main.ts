@@ -1,5 +1,11 @@
 import { animate, initMeshes, renderer } from "./gfx/render";
-import { fade, initUI, setupFadeOverlay, unfade } from "./gfx/ui";
+import {
+  fade,
+  initUI,
+  setupFadeOverlay,
+  unfade,
+  updateVisiblePlayerInfo,
+} from "./gfx/ui";
 import { setupColorScheme } from "./gfx/darkmode";
 import { generateBoard, loadGameData } from "./game";
 import { initGamepads, pollGamepads } from "./input/gamepad";
@@ -30,6 +36,7 @@ globalThis.addEventListener("DOMContentLoaded", async () => {
   animate(() => {
     pollGamepads();
     pollPlayers();
+    updateVisiblePlayerInfo();
   });
 
   unfade();

@@ -2,7 +2,18 @@ import { gameState, generateBoard, states, getFinishedMinesCount } from "../game
 import { updateMeshes } from "./render";
 import * as config from "../config";
 import { players } from "../players";
-import { on, PLAYER_ADDED, PLAYER_REMOVED } from "../eventBus";
+import {
+  BOARD_CHANGED,
+  on,
+  PLAYER_ADDED,
+  PLAYER_REMOVED,
+  TELEPORT_FINISHED,
+  TELEPORT_STARTED,
+} from "../eventBus";
+
+// Fade back in partway through the teleport flight so the tail of the
+// camera's deceleration is visible.
+const TELEPORT_UNFADE_FRACTION = 0.6;
 
 let fadeOverlay: HTMLDivElement | null = null;
 let instructionsOverlay: HTMLDivElement | null = null;
@@ -126,6 +137,12 @@ export function initUI() {
 
   on(PLAYER_ADDED, updateJoinInstructions);
   on(PLAYER_REMOVED, updateJoinInstructions);
+  on(BOARD_CHANGED, updateFinishedMineCount);
+  on(TELEPORT_STARTED, ({ flightMs }) => {
+    fade();
+    setTimeout(unfade, flightMs * TELEPORT_UNFADE_FRACTION);
+  });
+  on(TELEPORT_FINISHED, unfade);
 }
 
 // Function to update hover info for debug mode
@@ -152,11 +169,24 @@ export function clearHoverInfo() {
 }
 
 export function updateFinishedMineCount() {
+  // Counting finished mines scans the whole board — skip while the
+  // panel is hidden (toggleUI refreshes it on open)
+  const ui = document.getElementById("ui");
+  if (!ui || !ui.classList.contains("visible")) return;
+
   if (!finishedCountEl) {
     finishedCountEl = document.getElementById("finishedCount") as HTMLParagraphElement | null;
   }
   if (finishedCountEl) {
     finishedCountEl.textContent = `Finished mines: ${getFinishedMinesCount()}`;
+  }
+}
+
+// Per-frame refresh of the player panel, cheap no-op while the UI is hidden
+export function updateVisiblePlayerInfo() {
+  const ui = document.getElementById("ui");
+  if (ui && ui.classList.contains("visible")) {
+    updatePlayerInfo();
   }
 }
 

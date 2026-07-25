@@ -180,8 +180,6 @@ export function updatePlayerInfo() {
 
   // Generate player list with colored squares
   const playerList = Object.values(players).map((player) => {
-    if (player.disabled) return "";
-
     const colorHex = "#" + player.color.toString(16).padStart(6, "0");
     return `
             <div style="margin-bottom: 5px; display: flex; align-items: center;">

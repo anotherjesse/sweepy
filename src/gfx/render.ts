@@ -51,8 +51,8 @@ export async function initRender() {
   await initCamera(renderer);
 }
 
-on(PLAYER_ADDED, updateMeshes);
-on(PLAYER_REMOVED, updateMeshes);
+on(PLAYER_ADDED, createPlayerMesh);
+on(PLAYER_REMOVED, removePlayerMesh);
 on(BOARD_CHANGED, updateMeshes);
 
 // Load sprite atlas
@@ -66,9 +66,6 @@ function loadSpriteAtlas(): THREE.Texture {
 
 // Initialize meshes
 export function initMeshes() {
-  // Initialize player meshes
-  initPlayerMeshes();
-
   // Create a plane geometry for cells - ensure they're square
   const cellGeo = new THREE.PlaneGeometry(1.02, 1.02);
   // Make sure cells are flat on XZ plane
@@ -311,24 +308,15 @@ export function updateMeshes() {
   const arrData = arr.array as Float32Array;
   for (let i = 0; i < config.N; ++i) arrData[i] = states[i];
   arr.needsUpdate = true;
-
-  // Update player meshes
-  updatePlayerMeshes();
 }
 
-// Initialize player meshes
-function initPlayerMeshes() {
-  // Create player meshes for all existing players
-  Object.values(players).forEach((player) => {
-    if (!player.mesh) {
-      createPlayerMesh(player);
-    }
-  });
-}
+// Player avatar meshes, owned by the render layer and keyed by player id.
+const playerMeshes = new Map<string, THREE.Mesh>();
 
-// Create a mesh for a player
 function createPlayerMesh(player: Player) {
-  // Create a simple cube as player avatar
+  // A rejoin with an existing id replaces the mesh — drop the old one first
+  removePlayerMesh({ id: player.id });
+
   const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
   const material = new THREE.MeshBasicMaterial({
     color: player.color,
@@ -336,73 +324,53 @@ function createPlayerMesh(player: Player) {
     opacity: 0.7,
   });
 
-  // Create player mesh
   const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(player.x, 0.4, player.z);
 
-  // Position at player's coordinates (slightly above ground)
-  mesh.position.set(player.x + 0.5, 0.4, player.z + 0.5);
-
-  // Apply initial scale - start large and diffuse
+  // Spawn animation: start large and diffuse, converge to normal size
   mesh.scale.set(5, 5, 5);
-
-  // Store initial creation time for animation
   mesh.userData.creationTime = Date.now();
 
-  // Add to scene
   scene.add(mesh);
-
-  // Assign mesh to player
-  player.mesh = mesh;
+  playerMeshes.set(player.id, mesh);
 }
 
-// Update player meshes
-function updatePlayerMeshes() {
-  // Check for new players and create meshes for them
-  Object.values(players).forEach((player) => {
-    if (!player.mesh) {
-      createPlayerMesh(player);
-    } else {
-      // Update existing mesh position
-      player.mesh.position.set(player.x + 0.5, 0.4, player.z + 0.5);
-    }
-  });
+function removePlayerMesh({ id }: { id: string }) {
+  const mesh = playerMeshes.get(id);
+  if (!mesh) return;
+
+  scene.remove(mesh);
+  mesh.geometry.dispose();
+  (mesh.material as THREE.MeshBasicMaterial).dispose();
+  playerMeshes.delete(id);
 }
 
-// Animate player mesh with pulsing effect
+// Sync player meshes to player positions and animate spawn/pulse effects
 function animatePlayerMeshes() {
-  // Get current time for animation
   const time = Date.now();
 
-  // Update each player mesh
-  Object.values(players).forEach((player) => {
-    if (player.mesh) {
-      // Calculate age of the player mesh since creation
-      const age = time - (player.mesh.userData.creationTime || time);
+  for (const player of Object.values(players)) {
+    const mesh = playerMeshes.get(player.id);
+    if (!mesh) continue;
 
-      // Scale animation - converge to normal size (1,1,1) over 1 second
-      if (age < 1000) {
-        // Ease-out animation curve
-        const progress = 1 - Math.pow(1 - age / 1000, 3);
-        const targetScale = 1;
-        const currentScale = 5 * (1 - progress) + targetScale * progress;
-        player.mesh.scale.set(currentScale, currentScale, currentScale);
+    const age = time - (mesh.userData.creationTime || time);
+    mesh.position.x = player.x;
+    mesh.position.z = player.z;
 
-        // Gradually increase opacity as it scales down
-        const material = player.mesh.material as THREE.MeshBasicMaterial;
-        material.opacity = 0.3 + 0.4 * progress;
-      } else {
-        // Regular pulsing effect once animation is complete
-        const pulse = 0.4 + 0.4 * Math.sin(age * 0.003); // slower pulse
-
-        // Update material opacity
-        const material = player.mesh.material as THREE.MeshBasicMaterial;
-        material.opacity = 0.4 + pulse * 0.4; // base opacity 0.4, pulsing by 0.4
-
-        // Slightly bounce up and down
-        player.mesh.position.y = 0.4 + 0.05 * Math.sin(age * 0.005);
-      }
+    const material = mesh.material as THREE.MeshBasicMaterial;
+    if (age < 1000) {
+      // Spawn: ease-out from 5x scale while fading in
+      const progress = 1 - Math.pow(1 - age / 1000, 3);
+      const currentScale = 5 * (1 - progress) + progress;
+      mesh.scale.set(currentScale, currentScale, currentScale);
+      material.opacity = 0.3 + 0.4 * progress;
+    } else {
+      // Idle: gentle opacity pulse and vertical bounce
+      const pulse = 0.4 + 0.4 * Math.sin(age * 0.003);
+      material.opacity = 0.4 + pulse * 0.4;
+      mesh.position.y = 0.4 + 0.05 * Math.sin(age * 0.005);
     }
-  });
+  }
 }
 
 export function animate(inputPoll: () => void) {

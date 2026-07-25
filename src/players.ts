@@ -1,6 +1,5 @@
 import * as config from "./config";
 import { revealCell, toggleFlag } from "./game";
-import * as THREE from "three";
 import {
   on,
   emit,
@@ -21,32 +20,37 @@ export type Actions = {
 export type Player = {
   id: string;
   name: string;
-  disabled: boolean;
-  tilesRevealed: number;
-  bombsDefused: number;
-  flagsPlaced: number;
   x: number;
   z: number;
   color: number;
-  mesh: THREE.Mesh | undefined;
   poll: () => Actions;
 };
 
 export const players: Record<string, Player> = {};
 
+/** Random fully-saturated color (HSL with s=1, l=0.5) as a 0xRRGGBB hex. */
 function randomBrightColor(): number {
-  const c = new THREE.Color();
-  c.setHSL(Math.random(), 1, 0.5);
-  return c.getHex();
+  const h = Math.random() * 6;
+  const x = Math.round((1 - Math.abs((h % 2) - 1)) * 255);
+  const c = 255;
+  const [r, g, b] = h < 1
+    ? [c, x, 0]
+    : h < 2
+    ? [x, c, 0]
+    : h < 3
+    ? [0, c, x]
+    : h < 4
+    ? [0, x, c]
+    : h < 5
+    ? [x, 0, c]
+    : [c, 0, x];
+  return (r << 16) | (g << 8) | b;
 }
 
 export function teleportAllPlayers(dX: number, dZ: number) {
   for (const player of Object.values(players)) {
     player.x = (player.x + dX + config.W) % config.W;
     player.z = (player.z + dZ + config.H) % config.H;
-    if (player.mesh) {
-      player.mesh.position.set(player.x, 0.4, player.z);
-    }
   }
 }
 on(TELEPORT_PLAYERS, ({ dX, dZ }) => teleportAllPlayers(dX, dZ));
@@ -93,14 +97,9 @@ export function addPlayer(
     id,
     name,
     poll,
-    tilesRevealed: 0,
-    bombsDefused: 0,
-    flagsPlaced: 0,
-    disabled: false,
     x: spawnX,
     z: spawnZ,
     color: color ?? randomBrightColor(),
-    mesh: undefined,
   };
 
   emit(PLAYER_ADDED, players[id]);
@@ -109,16 +108,6 @@ export function addPlayer(
 }
 
 export function removePlayer({ id }: { id: string }) {
-  const player = players[id];
-
-  // Remove the mesh from the scene if it exists
-  if (player && player.mesh) {
-    const scene = player.mesh.parent;
-    if (scene) {
-      scene.remove(player.mesh);
-    }
-  }
-
   delete players[id];
 
   emit(PLAYER_REMOVED, { id });
@@ -152,10 +141,5 @@ function pollPlayer(player: Player) {
   }
   if (actions.zoomBy) {
     emit(ZOOM_BY, actions.zoomBy);
-  }
-
-  // Update player mesh position if it exists
-  if (player.mesh) {
-    player.mesh.position.set(player.x, 0.4, player.z);
   }
 }

@@ -103,11 +103,18 @@ export async function initCamera(renderer: THREE.WebGLRenderer) {
 
   requestedZoom = prefs?.zoom ?? (config.ZOOM_MIN + config.ZOOM_MAX) / 2;
 
+  // Looking straight down with the default up vector (0,1,0) is degenerate:
+  // up is parallel to the view direction, so the roll angle comes out as
+  // floating-point noise and the board loads rotated by a random amount.
+  // Use world -Z as "screen up" so the orientation is deterministic.
+  camera.up.set(0, 0, -1);
   camera.position.set(startX, 100, startZ);
   camera.lookAt(startX, 0, startZ);
   camera.zoom = requestedZoom;
   camera.updateProjectionMatrix();
 
+  // OrbitControls reads camera.up once at construction, so it must be set
+  // above, before this line
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.enableRotate = false;

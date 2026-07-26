@@ -66,8 +66,10 @@ function loadSpriteAtlas(): THREE.Texture {
 
 // Initialize meshes
 export function initMeshes() {
-  // Create a plane geometry for cells - ensure they're square
-  const cellGeo = new THREE.PlaneGeometry(1.02, 1.02);
+  // Create a plane geometry for cells - ensure they're square.
+  // Exactly 1x1: quads at integer offsets share bit-identical edges, so the
+  // grid is watertight with no overlap (oversizing caused seam artifacts).
+  const cellGeo = new THREE.PlaneGeometry(1, 1);
   // Make sure cells are flat on XZ plane
   cellGeo.translate(0, 0, 0);
   cellGeo.rotateX(-Math.PI / 2);
@@ -180,7 +182,10 @@ export function initMeshes() {
       }
       
       // compute final UV into atlas
-      vec2 baseUv  = uv; // the built-in 0–1 range within one tile
+      // The built-in 0–1 range within one tile, inset by half a texel so
+      // nearest sampling at cell edges can never round across the tile
+      // boundary into the adjacent atlas sprite (tiles are 128px square)
+      vec2 baseUv = clamp(uv, 0.5 / 128.0, 1.0 - 0.5 / 128.0);
       vec2 tileSz  = vec2(1.0/TILE_COLS, 1.0/TILE_ROWS);
       vUv = tileUV * tileSz + baseUv * tileSz;
       
@@ -196,17 +201,17 @@ export function initMeshes() {
     void main() {
       // Get original texture color (black/white/transparent)
       vec4 texColor = texture2D(atlas, vUv);
-      
+
       // Calculate the sprite position we're in (0-3 x, 0-2 y)
       float spriteX = floor(vUv.x * 4.0);
       float spriteY = floor(vUv.y * 3.0);
-      
-      // Skip coloring if fully transparent
-      if (texColor.a < 0.1) {
-        gl_FragColor = texColor;
-        return;
-      }
-      
+
+      // Transparent atlas texels show this opaque background instead.
+      // Alpha must always be 1: the canvas has an alpha channel and blending
+      // is off, so writing texColor.a would punch holes that composite the
+      // page background through the canvas.
+      vec3 bgColor = vec3(1.0, 1.0, 1.0);
+
       // Define colors for each number and flag/mine
       vec3 flagColor = vec3(1.0, 0.0, 0.0);        // Red for flag (0,0)
       vec3 emptyColor = vec3(0.0, 0.0, 0.0);       // Light gray for empty (3,0)
@@ -224,7 +229,8 @@ export function initMeshes() {
       vec3 finalColor = vec3(0.0, 0.0, 0.0);
 
       if (spriteX == 1.0 && spriteY == 0.0) {
-        gl_FragColor = texColor;
+        // Mine sprite keeps its own colors
+        gl_FragColor = vec4(mix(bgColor, texColor.rgb, texColor.a), 1.0);
         return;
       }
       
@@ -247,8 +253,8 @@ export function initMeshes() {
         else if (spriteX == 3.0) finalColor = num8Color;
       }
       
-      // Apply color based on texture intensity
-      gl_FragColor = vec4(finalColor * texColor.r, texColor.a);
+      // Apply color based on texture intensity, over the opaque background
+      gl_FragColor = vec4(mix(bgColor, finalColor * texColor.r, texColor.a), 1.0);
     }
     `,
     side: THREE.DoubleSide,
